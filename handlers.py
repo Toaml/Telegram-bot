@@ -1,11 +1,22 @@
 import re
 import unicodedata
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    WebAppInfo
+)
+
 from telegram.ext import ContextTypes
+
 from sqlalchemy import select, delete
 
-from config import ADMIN_IDS, ADMIN_USERNAME
+from config import (
+    ADMIN_IDS,
+    ADMIN_USERNAME
+)
+
 from database import (
     AsyncSessionLocal,
     get_or_create_user,
@@ -16,12 +27,27 @@ from database import (
     ContentRequest,
     User
 )
+
 from categories import get_category_keyboard
+
 from smart_conv import check_smart_reply
+
 from ai_engine import get_ai_response
+
 from search_engine import search_media
+
 from reminder import reload_reminders
+
 from ad_system import attach_ad_to_keyboard
+
+
+# =========================================================
+# WEB APP
+# =========================================================
+
+WEBAPP_BASE_URL = (
+    "https://telegram-bot-7hr2.onrender.com"
+)
 
 
 # =========================================================
@@ -113,37 +139,20 @@ def normalize_user_query(text: str):
 # =========================================================
 
 def detect_admin_social_request(text: str):
-    """
-    শুধুমাত্র Admin-এর Social ID/Link চাওয়া হলে match করবে।
-
-    Admin Tiktok
-    Admin Tiktok ID দেও
-    Admin Tiktok ID দাও
-    Admin Tiktok deo
-    এডমিনের TikTok লিংক দেন
-
-    এগুলো Admin Social Link হিসেবে match করবে।
-
-    কিন্তু:
-
-    Tiktok
-    Tiktok দেও
-    Tiktok দাও
-    Tiktok deo
-    Tiktok দেন
-
-    এগুলো database content search-এ যাবে।
-    """
 
     if not text:
         return None
 
-    q = normalize_user_query(text)
+    q = normalize_user_query(
+        text
+    )
 
     if not q:
         return None
 
-    words = set(q.split())
+    words = set(
+        q.split()
+    )
 
     admin_words = {
         "admin",
@@ -157,50 +166,44 @@ def detect_admin_social_request(text: str):
         "boss"
     }
 
-    has_admin = bool(
-        words.intersection(admin_words)
-    )
-
-    if not has_admin:
+    if not words.intersection(
+        admin_words
+    ):
         return None
 
-    facebook_words = {
+    if words.intersection({
         "facebook",
         "ফেসবুক"
-    }
+    }):
 
-    if words.intersection(facebook_words):
         return "facebook"
 
-    tiktok_words = {
-        "tiktok",
-        "টিকটক"
-    }
-
     if (
-        words.intersection(tiktok_words)
+        words.intersection({
+            "tiktok",
+            "টিকটক"
+        })
         or "tik tok" in q
     ):
+
         return "tiktok"
 
-    whatsapp_words = {
+    if words.intersection({
         "whatsapp",
         "whatapp",
         "হোয়াটসঅ্যাপ",
         "হোয়াটসঅ্যাপ",
         "হোয়াটসাপ",
         "হোয়াটসাপ"
-    }
+    }):
 
-    if words.intersection(whatsapp_words):
         return "whatsapp"
 
-    telegram_words = {
+    if words.intersection({
         "telegram",
         "টেলিগ্রাম"
-    }
+    }):
 
-    if words.intersection(telegram_words):
         return "telegram"
 
     return None
@@ -258,7 +261,8 @@ async def send_admin_social_link(
 
     await update.message.reply_text(
         f"{emoji} *Admin {name}*\n\n"
-        f"নিচের বাটনে ক্লিক করে Admin-এর {name} প্রোফাইলে যান: 👇",
+        f"নিচের বাটনে ক্লিক করে Admin-এর "
+        f"{name} প্রোফাইলে যান: 👇",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -272,7 +276,9 @@ async def send_admin_social_link(
 
 def looks_like_content_request(text: str):
 
-    q = normalize_user_query(text)
+    q = normalize_user_query(
+        text
+    )
 
     if not q:
         return False
@@ -284,6 +290,7 @@ def looks_like_content_request(text: str):
     if words.intersection(
         CONTENT_REQUEST_WORDS
     ):
+
         return True
 
     content_words = {
@@ -312,12 +319,11 @@ def looks_like_content_request(text: str):
         "waaz"
     }
 
-    if words.intersection(
-        content_words
-    ):
-        return True
-
-    return False
+    return bool(
+        words.intersection(
+            content_words
+        )
+    )
 
 
 # =========================================================
@@ -384,7 +390,8 @@ async def start_handler(
     )
 
     welcome_text = (
-        f"👋 আসসালামু আলাইকুম, {user.first_name}!\n\n"
+        f"👋 আসসালামু আলাইকুম, "
+        f"{user.first_name}!\n\n"
         "আমি আপনার অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট।\n"
         "যেকোনো প্রশ্ন করুন কিংবা গান/ভিডিও/নাটক "
         "খুঁজতে নাম লিখুন।\n\n"
@@ -586,8 +593,6 @@ async def category_callback_handler(
             cat_name
         )
 
-        return
-
 
 # =========================================================
 # FINALIZE CONTENT SAVE
@@ -693,7 +698,7 @@ async def finalize_content_save(
 
 
 # =========================================================
-# EDIT / DELETE SAVED CONTENT
+# EDIT / DELETE
 # =========================================================
 
 async def edit_saved_content_callback(
@@ -773,7 +778,7 @@ async def edit_saved_content_callback(
 
 
 # =========================================================
-# CANCEL COMMAND
+# CANCEL
 # =========================================================
 
 async def cancel_command(
@@ -820,25 +825,54 @@ async def send_content_to_user(
 
     try:
 
-        # =============================================
-        # AD WEB APP BUTTON
-        # =============================================
+        # =================================================
+        # VIDEO -> WEB APP
+        # =================================================
+
+        if content_item.media_type == "video":
+
+            webapp_url = (
+                WEBAPP_BASE_URL
+                + "/app?content_id="
+                + str(content_item.content_id)
+            )
+
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "🔓 OPEN",
+                        web_app=WebAppInfo(
+                            url=webapp_url
+                        )
+                    )
+                ]
+            ])
+
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=(
+                    "🔒 *Content Locked*\n\n"
+                    f"🎬 *{content_item.title}*\n"
+                    f"📂 ক্যাটাগরি: {content_item.category}\n\n"
+                    "ভিডিও দেখতে নিচের "
+                    "*🔓 OPEN* বাটনে চাপুন।"
+                ),
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+
+            return True
+
+
+        # =================================================
+        # AUDIO / PHOTO / DOCUMENT
+        # =================================================
 
         keyboard = attach_ad_to_keyboard(
             InlineKeyboardMarkup([])
         )
 
-        if content_item.media_type == "video":
-
-            await context.bot.send_video(
-                chat_id=user_id,
-                video=content_item.file_id,
-                caption=caption,
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-
-        elif content_item.media_type == "audio":
+        if content_item.media_type == "audio":
 
             await context.bot.send_audio(
                 chat_id=user_id,
@@ -1015,7 +1049,10 @@ async def show_available_content(
         )
 
     if nav:
-        keyboard.append(nav)
+
+        keyboard.append(
+            nav
+        )
 
     keyboard.append([
         InlineKeyboardButton(
@@ -1173,40 +1210,61 @@ async def send_selected_content(
 
     await query.answer()
 
-    caption = (
-        f"🎬 *{content_item.title}*\n"
-        f"📂 ক্যাটাগরি: {content_item.category}"
-    )
-
-    # =============================================
-    # AD WEB APP BUTTON
-    # =============================================
-
-    keyboard = attach_ad_to_keyboard(
-        InlineKeyboardMarkup([])
-    )
-
     try:
 
-        # =========================================
-        # VIDEO
-        # =========================================
+        # =================================================
+        # VIDEO -> WEB APP
+        # =================================================
 
         if content_item.media_type == "video":
 
-            await context.bot.send_video(
-                chat_id=query.from_user.id,
-                video=content_item.file_id,
-                caption=caption,
-                parse_mode="Markdown",
-                reply_markup=keyboard
+            webapp_url = (
+                WEBAPP_BASE_URL
+                + "/app?content_id="
+                + str(content_item.content_id)
             )
 
-        # =========================================
-        # AUDIO
-        # =========================================
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "🔓 OPEN",
+                        web_app=WebAppInfo(
+                            url=webapp_url
+                        )
+                    )
+                ]
+            ])
 
-        elif content_item.media_type == "audio":
+            await context.bot.send_message(
+                chat_id=query.from_user.id,
+                text=(
+                    "🔒 *Content Locked*\n\n"
+                    f"🎬 *{content_item.title}*\n"
+                    f"📂 ক্যাটাগরি: {content_item.category}\n\n"
+                    "ভিডিও দেখতে নিচের "
+                    "*🔓 OPEN* বাটনে চাপুন।"
+                ),
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+
+            return
+
+
+        # =================================================
+        # NON VIDEO
+        # =================================================
+
+        caption = (
+            f"🎬 *{content_item.title}*\n"
+            f"📂 ক্যাটাগরি: {content_item.category}"
+        )
+
+        keyboard = attach_ad_to_keyboard(
+            InlineKeyboardMarkup([])
+        )
+
+        if content_item.media_type == "audio":
 
             await context.bot.send_audio(
                 chat_id=query.from_user.id,
@@ -1215,10 +1273,6 @@ async def send_selected_content(
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
-
-        # =========================================
-        # PHOTO
-        # =========================================
 
         elif content_item.media_type == "photo":
 
@@ -1229,10 +1283,6 @@ async def send_selected_content(
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
-
-        # =========================================
-        # DOCUMENT
-        # =========================================
 
         else:
 
@@ -1438,6 +1488,7 @@ async def handle_user_text(
         not update.message
         or not update.message.text
     ):
+
         return
 
     text = update.message.text.strip()
@@ -1446,7 +1497,9 @@ async def handle_user_text(
         return
 
     user_id = update.effective_user.id
+
     chat_type = update.effective_chat.type
+
 
     # =====================================================
     # ADMIN UPLOAD SESSION
@@ -1482,7 +1535,7 @@ async def handle_user_text(
 
             return
 
-        elif step == "WAITING_CUSTOM_CAT":
+        if step == "WAITING_CUSTOM_CAT":
 
             await finalize_content_save(
                 update.message,
@@ -1492,7 +1545,7 @@ async def handle_user_text(
 
             return
 
-        elif step == "EDITING_EXISTING_TITLE":
+        if step == "EDITING_EXISTING_TITLE":
 
             cid = session.get(
                 "target_cid"
@@ -1500,13 +1553,15 @@ async def handle_user_text(
 
             async with AsyncSessionLocal() as db_sess:
 
-                content = (
-                    await db_sess.execute(
-                        select(Content).where(
-                            Content.content_id == cid
-                        )
+                result = await db_sess.execute(
+                    select(Content).where(
+                        Content.content_id == cid
                     )
-                ).scalars().first()
+                )
+
+                content = (
+                    result.scalars().first()
+                )
 
                 if content:
 
@@ -1531,6 +1586,7 @@ async def handle_user_text(
             )
 
             return
+
 
     # =====================================================
     # GROUP HANDLING
@@ -1558,6 +1614,7 @@ async def handle_user_text(
         )
 
         if not mentioned and not replied_to_bot:
+
             return
 
         text = re.sub(
@@ -1570,8 +1627,9 @@ async def handle_user_text(
         if not text:
             return
 
+
     # =====================================================
-    # ADMIN SOCIAL LINK
+    # ADMIN SOCIAL
     # =====================================================
 
     social_type = detect_admin_social_request(
@@ -1589,8 +1647,9 @@ async def handle_user_text(
         if sent_social:
             return
 
+
     # =====================================================
-    # UNIVERSAL DATABASE CONTENT SEARCH
+    # DATABASE CONTENT SEARCH
     # =====================================================
 
     content_item = await search_media(
@@ -1615,10 +1674,12 @@ async def handle_user_text(
             await wait_msg.delete()
 
         except Exception:
+
             pass
 
         if sent:
             return
+
 
     # =====================================================
     # CONTENT NOT FOUND
@@ -1661,6 +1722,7 @@ async def handle_user_text(
 
         return
 
+
     # =====================================================
     # SMART REPLY
     # =====================================================
@@ -1676,6 +1738,7 @@ async def handle_user_text(
         )
 
         return
+
 
     # =====================================================
     # REMINDER
@@ -1792,6 +1855,7 @@ async def handle_user_text(
         )
 
         return
+
 
     # =====================================================
     # AI FALLBACK
@@ -1915,13 +1979,15 @@ async def notifications_menu(
         ]
     ]
 
+    markup = InlineKeyboardMarkup(
+        keyboard
+    )
+
     if update.callback_query:
 
         await update.callback_query.message.reply_text(
             "⚙️ *আপনার নোটিফিকেশন সেটিংস:*",
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            ),
+            reply_markup=markup,
             parse_mode="Markdown"
         )
 
@@ -1929,9 +1995,7 @@ async def notifications_menu(
 
         await update.message.reply_text(
             "⚙️ *আপনার নোটিফিকেশন সেটিংস:*",
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            ),
+            reply_markup=markup,
             parse_mode="Markdown"
         )
 
@@ -1975,4 +2039,4 @@ async def toggle_notification_callback(
         await notifications_menu(
             update,
             context
-    )
+)
