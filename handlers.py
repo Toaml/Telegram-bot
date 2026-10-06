@@ -9,7 +9,6 @@ from database import (
 from categories import get_category_keyboard
 from smart_conv import check_smart_reply
 from ai_engine import get_ai_response
-from weather import get_weather
 from search_engine import search_media
 from reminder import reload_reminders
 from ad_system import attach_ad_to_keyboard
@@ -30,18 +29,17 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         f"👋 আসসালামু আলাইকুম, {user.first_name}!\n\n"
         f"আমি আপনার অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট।\n"
-        f"আপনি যেকোনো প্রশ্ন করতে পারেন, চ্যাট করতে পারেন কিংবা কোনো নাটক/ভিডিও/গান খুঁজতে পারেন।\n\n"
-        f"নিচের মেনু থেকেও আপনার প্রয়োজনীয় সুবিধা বেছে নিতে পারেন: 👇"
+        f"যেকোনো প্রশ্ন করুন কিংবা গান/ভিডিও/নাটক খুঁজতে নাম লিখুন।\n\n"
+        f"নিচের মেনু থেকেও সুবিধা বেছে নিতে পারেন: 👇"
     )
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "📖 *বটের ব্যবহার নির্দেশিকা:*\n\n"
-        "• আমাকে যেকোনো কথা বা প্রশ্ন লিখে পাঠান, আমি তৎক্ষণাৎ উত্তর দেব।\n"
-        "• কোনো নাটক বা ভিডিও পেতে স্পষ্ট করে বলুন (যেমন: `ব্যাচেলর পয়েন্ট নাটক দাও`)\n"
-        "• `/weather [শহর]` দিয়ে আবহাওয়া দেখুন।\n"
-        "• `/notifications` দিয়ে নোটিফিকেশন অন/অফ করুন।"
+        "• যেকোনো কথা লিখলে সরাসরি মানুষের মতো উত্তর দেব।\n"
+        "• ভিডিও বা নাটক পেতে লিখুন: যেমন `ব্যাচেলর পয়েন্ট ভিডিও দেও`\n"
+        "• `/notifications` দিয়ে নোটিফিকেশন সেটিংস পরিবর্তন করুন।"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -74,7 +72,7 @@ async def media_upload_init(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["upload_file_id"] = file_id
     context.user_data["upload_media_type"] = media_type
 
-    await message.reply_text("🎬 এই কন্টেন্টের নাম কী? অনুগ্রহ করে নাম লিখে পাঠান:")
+    await message.reply_text("🎬 এই কন্টেন্টের নাম কী? নাম লিখে পাঠান:")
     return UPLOAD_TITLE
 
 async def media_title_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -83,7 +81,7 @@ async def media_title_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
     keyboard = get_category_keyboard(page=0, callback_prefix="admin_cat")
     await update.message.reply_text(
-        f"✅ কন্টেন্টের নাম: *{title}*\n\n📂 এবার নিচে থেকে ক্যাটাগরি নির্বাচন করুন:",
+        f"✅ কন্টেন্টের নাম: *{title}*\n\n📂 ক্যাটাগরি নির্বাচন করুন:",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -142,7 +140,7 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_type = update.effective_chat.type
 
-    # গ্রুপ মেসেজ হলে শুধুমাত্র মেনশন বা রিপ্লাই থাকলে কাজ করবে
+    # গ্রুপ মেসেজ হ্যান্ডলিং
     if chat_type in ["group", "supergroup"]:
         bot_user = await context.bot.get_me()
         bot_username = bot_user.username
@@ -156,12 +154,17 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(smart_reply)
         return
 
-    # ২. স্পষ্ট কন্টেন্ট রিকোয়েস্ট (দাও / পাঠাও ইত্যাদি থাকলে তবেই ডাটাবেসে খুঁজবে)
     t_lower = text.lower()
-    explicit_content_intent = any(w in t_lower for w in ["dao", "দাও", "pathao", "পাঠাও", "chahi", "চাই", "khujchi", "খুঁজছি"])
-    content_words = any(w in t_lower for w in ["video", "ভিডিও", "natok", "নাটক", "gan", "গান", "movie", "মুভি", "film"])
 
-    if explicit_content_intent and content_words:
+    # ২. কন্টেন্ট সার্চ (দাও, দেও, দে, দেন, পাঠান, dao, deo, pathan সব ধরবে)
+    ask_words = ["দাও", "দেও", "দে", "দেন", "পাঠান", "পাঠাও", "চাই", "খুঁজছি", "খুজছি", "dao", "deo", "de", "den", "pathao", "pathan", "chai"]
+    media_words = ["ভিডিও", "নাটক", "গান", "মুভি", "সিনেমা", "ওয়াজ", "video", "natok", "gan", "movie", "waz"]
+
+    has_ask = any(w in t_lower for w in ask_words)
+    has_media = any(w in t_lower for w in media_words)
+
+    # যদি ইউজার কোনো কন্টেন্ট খোঁজে
+    if (has_ask and has_media) or (has_media and len(text.split()) >= 2):
         wait_msg = await update.message.reply_text("অবশ্যই 😎\nএকটু অপেক্ষা করুন, দিচ্ছি..... ⏳")
         content_item = await search_media(text)
 
@@ -183,6 +186,7 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
 
+        # ডাটাবেসে না থাকলে
         await wait_msg.delete()
         async with AsyncSessionLocal() as session:
             req = ContentRequest(user_id=user_id, username=update.effective_user.username, query=text)
@@ -211,7 +215,7 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ৩. ন্যাচারাল রিমাইন্ডার সেট করা
+    # ৩. ন্যাচারাল রিমাইন্ডার হ্যান্ডলিং
     time_match = re.search(r"(\d{1,2})[^\d]*([০-৯]{0,2})?\s*(টায়|টা|am|pm|ঘন্টায়)", text, re.IGNORECASE)
     if ("মনে করিয়ে" in text or "রিমাইন্ডার" in text or "remind" in text.lower()) and time_match:
         hour = int(time_match.group(1))
@@ -237,7 +241,7 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ ঠিক আছে! প্রতিদিন {schedule_str}-এ আপনাকে মনে করিয়ে দেওয়া হবে। ⏰")
         return
 
-    # ৪. বাকি সমস্ত ক্ষেত্রে AI চ্যাট (ChatGPT-এর মতো উত্তর)
+    # ৪. বাকি সব ক্ষেত্রে স্মার্ট AI চ্যাট
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     ai_reply = await get_ai_response(text)
     await update.message.reply_text(ai_reply)
