@@ -80,7 +80,7 @@ CONTENT_REQUEST_WORDS = {
 }
 
 
-def normalize_user_query(text: str) -> str:
+def normalize_user_query(text: str):
 
     if not text:
         return ""
@@ -114,20 +114,31 @@ def normalize_user_query(text: str) -> str:
 
 def detect_admin_social_request(text: str):
     """
-    User যদি Admin-এর Social ID/Link চায়
-    তাহলে social platform return করবে।
+    শুধুমাত্র Admin-এর Social ID/Link চাওয়া হলে match করবে।
 
     IMPORTANT:
-    শুধু "Tiktok" লিখলে এখানে match করবে না।
-    কারণ Tiktok saved content হিসেবেও থাকতে পারে।
+    শুধু TikTok/Facebook/WhatsApp/Telegram লিখলে
+    Admin Social হিসেবে ধরা হবে না।
 
-    Match examples:
-    - Admin Facebook দাও
-    - এডমিনের Facebook আইডি দেও
-    - admin tiktok
-    - এডমিনের TikTok লিংক দেন
-    - WhatsApp admin দেন
-    - এডমিনের Telegram আইডি দাও
+    উদাহরণ:
+
+    Admin Tiktok
+    Admin Tiktok ID দেও
+    Admin Tiktok ID দাও
+    Admin Tiktok deo
+    এডমিনের TikTok লিংক দেন
+
+    এগুলো Admin Social Link হিসেবে match করবে।
+
+    কিন্তু:
+
+    Tiktok
+    Tiktok দেও
+    Tiktok দাও
+    Tiktok deo
+    Tiktok দেন
+
+    এগুলো database content search-এ যাবে।
     """
 
     if not text:
@@ -138,128 +149,97 @@ def detect_admin_social_request(text: str):
     if not q:
         return None
 
-    # Admin related words
-    admin_words = [
+    words = set(q.split())
+
+    # -----------------------------------------------------
+    # ADMIN WORDS
+    # -----------------------------------------------------
+
+    admin_words = {
         "admin",
         "এডমিন",
         "অ্যাডমিন",
         "এডমিনের",
         "অ্যাডমিনের",
+        "এডমিনকে",
+        "অ্যাডমিনকে",
         "বস",
         "boss"
-    ]
-
-    # Request / link related words
-    request_words = [
-        "দাও",
-        "দে",
-        "দেন",
-        "দেও",
-        "দিয়েন",
-        "দিন",
-        "পাঠাও",
-        "পাঠান",
-        "দেখাও",
-        "দেখান",
-        "চাই",
-        "দাওতো",
-        "dao",
-        "deo",
-        "de",
-        "den",
-        "din",
-        "send",
-        "give",
-        "show",
-        "link",
-        "লিংক",
-        "আইডি",
-        "id",
-        "profile",
-        "প্রোফাইল"
-    ]
-
-    has_admin = any(
-        word in q
-        for word in admin_words
-    )
-
-    has_request = any(
-        word in q
-        for word in request_words
-    )
+    }
 
     # -----------------------------------------------------
-    # Facebook
+    # VERY IMPORTANT
+    #
+    # Admin শব্দ না থাকলে কখনো Social Link return করবে না।
+    #
+    # তাই:
+    # Tiktok
+    # Tiktok দাও
+    # Tiktok দেও
+    #
+    # সব database search-এ যাবে।
     # -----------------------------------------------------
 
-    has_facebook = any(
-        word in q
-        for word in [
-            "facebook",
-            "ফেসবুক"
-        ]
+    has_admin = bool(
+        words.intersection(admin_words)
     )
 
-    if has_facebook and (
-        has_admin or has_request
-    ):
+    if not has_admin:
+        return None
+
+    # -----------------------------------------------------
+    # FACEBOOK
+    # -----------------------------------------------------
+
+    facebook_words = {
+        "facebook",
+        "ফেসবুক"
+    }
+
+    if words.intersection(facebook_words):
         return "facebook"
 
     # -----------------------------------------------------
-    # TikTok
+    # TIKTOK
     # -----------------------------------------------------
 
-    has_tiktok = any(
-        word in q
-        for word in [
-            "tiktok",
-            "tik tok",
-            "টিকটক"
-        ]
-    )
+    tiktok_words = {
+        "tiktok",
+        "টিকটক"
+    }
 
-    if has_tiktok and (
-        has_admin or has_request
+    if (
+        words.intersection(tiktok_words)
+        or "tik tok" in q
     ):
         return "tiktok"
 
     # -----------------------------------------------------
-    # WhatsApp
+    # WHATSAPP
     # -----------------------------------------------------
 
-    has_whatsapp = any(
-        word in q
-        for word in [
-            "whatsapp",
-            "whatapp",
-            "হোয়াটসঅ্যাপ",
-            "হোয়াটসঅ্যাপ",
-            "হোয়াটসঅ্যাপ",
-            "হোয়াটসাপ"
-        ]
-    )
+    whatsapp_words = {
+        "whatsapp",
+        "whatapp",
+        "হোয়াটসঅ্যাপ",
+        "হোয়াটসঅ্যাপ",
+        "হোয়াটসাপ",
+        "হোয়াটসাপ"
+    }
 
-    if has_whatsapp and (
-        has_admin or has_request
-    ):
+    if words.intersection(whatsapp_words):
         return "whatsapp"
 
     # -----------------------------------------------------
-    # Telegram
+    # TELEGRAM
     # -----------------------------------------------------
 
-    has_telegram = any(
-        word in q
-        for word in [
-            "telegram",
-            "টেলিগ্রাম"
-        ]
-    )
+    telegram_words = {
+        "telegram",
+        "টেলিগ্রাম"
+    }
 
-    if has_telegram and (
-        has_admin or has_request
-    ):
+    if words.intersection(telegram_words):
         return "telegram"
 
     return None
@@ -1598,24 +1578,22 @@ async def handle_user_text(
             return
 
     # =====================================================
-    # 🔥 ADMIN SOCIAL LINK
+    # ADMIN SOCIAL LINK
     #
-    # এটা CONTENT SEARCH-এর আগে।
+    # IMPORTANT:
+    # detect_admin_social_request()
+    # এখন শুধুমাত্র Admin/এডমিন/বস শব্দ থাকলে
+    # Social request হিসেবে match করবে।
     #
-    # উদাহরণ:
-    #
-    # Admin Facebook দাও
-    # এডমিনের Facebook আইডি দেও
-    # Admin TikTok দাও
-    # Admin WhatsApp দেন
-    # Admin Telegram আইডি দাও
-    #
-    # কিন্তু শুধু:
+    # তাই:
     #
     # Tiktok
+    # Tiktok দেও
+    # Tiktok দাও
+    # Tiktok deo
+    # Tiktok দেন
     #
-    # হলে এটা এখানে ধরা হবে না।
-    # তখন database content search হবে।
+    # database search-এ যাবে।
     # =====================================================
 
     social_type = detect_admin_social_request(
