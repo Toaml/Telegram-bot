@@ -1,7 +1,5 @@
 import asyncio
 
-from aiohttp import web
-
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -10,7 +8,7 @@ from telegram.ext import (
     filters
 )
 
-from config import BOT_TOKEN, PORT
+from config import BOT_TOKEN
 
 from database import init_db
 
@@ -39,48 +37,7 @@ from admin_handlers import (
     view_requests
 )
 
-
-# =========================================================
-# HEALTH CHECK
-# =========================================================
-
-async def health_check(request):
-
-    return web.Response(
-        text="Bot is running healthy 24/7!",
-        status=200
-    )
-
-
-# =========================================================
-# WEB SERVER
-# =========================================================
-
-async def start_web_server():
-
-    app = web.Application()
-
-    app.router.add_get(
-        "/",
-        health_check
-    )
-
-    app.router.add_get(
-        "/health",
-        health_check
-    )
-
-    runner = web.AppRunner(app)
-
-    await runner.setup()
-
-    site = web.TCPSite(
-        runner,
-        "0.0.0.0",
-        PORT
-    )
-
-    await site.start()
+from video_server import start_web_server
 
 
 # =========================================================
@@ -90,7 +47,7 @@ async def start_web_server():
 async def main():
 
     # -----------------------------------------------------
-    # BOT TOKEN CHECK
+    # BOT TOKEN
     # -----------------------------------------------------
 
     if not BOT_TOKEN:
@@ -119,7 +76,7 @@ async def main():
 
 
     # =====================================================
-    # COMMAND HANDLERS
+    # COMMANDS
     # =====================================================
 
     application.add_handler(
@@ -174,8 +131,6 @@ async def main():
 
     # =====================================================
     # ADMIN MEDIA UPLOAD
-    #
-    # Video / Audio / Photo / Document
     # =====================================================
 
     application.add_handler(
@@ -192,13 +147,7 @@ async def main():
 
 
     # =====================================================
-    # ADMIN CATEGORY CALLBACK
-    #
-    # admin_cat:
-    # admin_cat_page:
-    # admin_edit_name_btn
-    # admin_custom_cat_btn
-    # admin_cancel_btn
+    # ADMIN CATEGORY
     # =====================================================
 
     application.add_handler(
@@ -215,7 +164,7 @@ async def main():
 
 
     # =====================================================
-    # ADMIN CONTENT EDIT / DELETE
+    # EDIT / DELETE
     # =====================================================
 
     application.add_handler(
@@ -227,15 +176,7 @@ async def main():
 
 
     # =====================================================
-    # USER CONTENT CALLBACKS
-    #
-    # Available Content
-    # Search Again
-    # Categories
-    # Individual Content
-    # Content Help
-    # AI Help
-    # Notifications
+    # USER CALLBACK
     # =====================================================
 
     application.add_handler(
@@ -252,7 +193,7 @@ async def main():
 
 
     # =====================================================
-    # NOTIFICATION TOGGLE
+    # NOTIFICATIONS
     # =====================================================
 
     application.add_handler(
@@ -289,19 +230,6 @@ async def main():
 
     # =====================================================
     # NORMAL TEXT
-    #
-    # User message:
-    #
-    # Tiktok
-    # Tiktok দাও
-    # গান
-    # গান দাও
-    # মুভি
-    # মুভি দেন
-    # নাটক দে
-    # custom category
-    #
-    # সব handle করবে handle_user_text()
     # =====================================================
 
     application.add_handler(
@@ -313,7 +241,7 @@ async def main():
 
 
     # =====================================================
-    # REMINDER SCHEDULER
+    # REMINDER
     # =====================================================
 
     start_scheduler(
@@ -326,18 +254,14 @@ async def main():
 
 
     # =====================================================
-    # WEB HEALTH SERVER
+    # WEB SERVER
     # =====================================================
 
     await start_web_server()
 
-    print(
-        f"✅ Web server started on port {PORT}"
-    )
-
 
     # =====================================================
-    # START TELEGRAM BOT
+    # START BOT
     # =====================================================
 
     print(
@@ -354,7 +278,7 @@ async def main():
 
 
     # =====================================================
-    # KEEP BOT RUNNING
+    # KEEP RUNNING
     # =====================================================
 
     await asyncio.Event().wait()
