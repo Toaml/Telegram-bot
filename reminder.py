@@ -4,6 +4,7 @@
 # ============================================================
 # Features:
 # - Automatic hourly time notification
+# - Time + Date + Weekday + Temperature + Location
 # - Fajr / Dhuhr / Asr / Maghrib / Isha reminders
 # - Wake up
 # - Breakfast
@@ -29,6 +30,7 @@
 import asyncio
 import datetime
 import random
+import re
 from typing import Optional
 
 import pytz
@@ -39,6 +41,7 @@ from sqlalchemy import select
 from config import DEFAULT_TIMEZONE
 from database import AsyncSessionLocal, User
 from prayer import get_prayer_times
+from weather import get_weather
 
 
 # ============================================================
@@ -63,7 +66,7 @@ _scheduler_running = False
 # DUPLICATE PROTECTION
 # ============================================================
 
-_last_hour_sent = None
+_last_hour_sent = set()
 
 _last_prayer_sent = set()
 
@@ -75,14 +78,17 @@ _message_history = {}
 
 
 # ============================================================
-# REMINDER MESSAGE DATABASE
+# WEATHER CACHE
+# ============================================================
+
+_weather_cache = {}
+
+
+# ============================================================
+# MESSAGE DATABASE
 # ============================================================
 
 BASE_MESSAGES = {
-
-    # --------------------------------------------------------
-    # WAKE
-    # --------------------------------------------------------
 
     "wake": [
         "🌅 সুপ্রভাত! ঘুম থেকে ওঠার সময় হয়েছে।",
@@ -102,11 +108,6 @@ BASE_MESSAGES = {
         "🌞 অলসতা বাদ দিন। আজকের কাজ আজই শুরু করুন।",
     ],
 
-
-    # --------------------------------------------------------
-    # BREAKFAST
-    # --------------------------------------------------------
-
     "breakfast": [
         "🍳 নাশতা করার সময় হয়েছে। দিনের শুরুতে পুষ্টিকর খাবার খান।",
         "🥪 সকালের খাবার খেতে ভুলবেন না।",
@@ -124,11 +125,6 @@ BASE_MESSAGES = {
         "🍳 সকালের নাশতা মিস করবেন না।",
         "🍽️ নাশতা করে দিনের কাজ শুরু করুন।",
     ],
-
-
-    # --------------------------------------------------------
-    # STUDY
-    # --------------------------------------------------------
 
     "study": [
         "📚 পড়াশোনার সময় হয়েছে। মনোযোগ দিয়ে কিছুক্ষণ পড়ুন।",
@@ -148,11 +144,6 @@ BASE_MESSAGES = {
         "✍️ মনোযোগ দিয়ে পড়ুন এবং প্রয়োজনীয় বিষয়গুলো লিখে রাখুন।",
     ],
 
-
-    # --------------------------------------------------------
-    # LUNCH
-    # --------------------------------------------------------
-
     "lunch": [
         "🍛 দুপুরের খাবারের সময় হয়েছে। সময়মতো খাবার খান।",
         "🍚 দুপুরের খাবার খেয়ে নিন এবং শরীরকে শক্তি দিন।",
@@ -171,11 +162,6 @@ BASE_MESSAGES = {
         "🥗 সময়মতো খাবার খাওয়ার অভ্যাস করুন।",
     ],
 
-
-    # --------------------------------------------------------
-    # BATH
-    # --------------------------------------------------------
-
     "bath": [
         "🚿 গোসল করার সময় হয়েছে। নিজেকে সতেজ করে নিন।",
         "🛁 একটু সময় নিয়ে গোসল করে ফ্রেশ হয়ে নিন।",
@@ -189,11 +175,6 @@ BASE_MESSAGES = {
         "🧼 এখন একটু ফ্রেশ হয়ে নিন।",
     ],
 
-
-    # --------------------------------------------------------
-    # SPORTS
-    # --------------------------------------------------------
-
     "sports": [
         "⚽ খেলাধুলা বা ব্যায়ামের সময় হয়েছে।",
         "🏃 কিছুক্ষণ হাঁটাহাঁটি বা ব্যায়াম করুন।",
@@ -206,11 +187,6 @@ BASE_MESSAGES = {
         "🏃 শরীরকে সক্রিয় রাখার জন্য কিছুক্ষণ হাঁটুন।",
         "💪 আজকের শরীরচর্চার সময় হয়েছে।",
     ],
-
-
-    # --------------------------------------------------------
-    # WATER
-    # --------------------------------------------------------
 
     "water": [
         "💧 পানি পান করার সময় হয়েছে। এক গ্লাস পানি পান করুন।",
@@ -226,11 +202,6 @@ BASE_MESSAGES = {
         "🚰 পানি খাওয়ার কথা মনে আছে তো? এখন পান করুন।",
         "💧 নিয়মিত পানি পান করার অভ্যাস করুন।",
     ],
-
-
-    # --------------------------------------------------------
-    # WORK
-    # --------------------------------------------------------
 
     "work": [
         "💼 কাজের সময় হয়েছে। মনোযোগ দিয়ে কাজ শুরু করুন।",
@@ -250,11 +221,6 @@ BASE_MESSAGES = {
         "🎯 সময়ের সঠিক ব্যবহার করুন।",
     ],
 
-
-    # --------------------------------------------------------
-    # EVENING
-    # --------------------------------------------------------
-
     "evening": [
         "🌇 সন্ধ্যা হয়ে গেছে। দিনের কাজগুলো একটু গুছিয়ে নিন।",
         "🌆 সুন্দর সন্ধ্যা। পরিবারকে একটু সময় দিন।",
@@ -268,11 +234,6 @@ BASE_MESSAGES = {
         "🌆 সন্ধ্যায় কাছের মানুষদের একটু সময় দিন।",
     ],
 
-
-    # --------------------------------------------------------
-    # DINNER
-    # --------------------------------------------------------
-
     "dinner": [
         "🍽️ রাতের খাবারের সময় হয়েছে। সময়মতো খাবার খান।",
         "🍛 রাতের খাবার খেয়ে নিন।",
@@ -285,11 +246,6 @@ BASE_MESSAGES = {
         "🍽️ ডিনার করে কিছুক্ষণ বিশ্রাম নিন।",
         "🍚 রাতের খাবার বাদ দেবেন না।",
     ],
-
-
-    # --------------------------------------------------------
-    # SLEEP
-    # --------------------------------------------------------
 
     "sleep": [
         "😴 ঘুমানোর সময় হয়েছে। আজকের কাজ শেষ করে বিশ্রাম নিন।",
@@ -309,11 +265,6 @@ BASE_MESSAGES = {
         "😴 শান্তিতে ঘুমান এবং আগামীকাল নতুনভাবে শুরু করুন।",
     ],
 
-
-    # --------------------------------------------------------
-    # MOTIVATION
-    # --------------------------------------------------------
-
     "motivation": [
         "💪 হাল ছাড়বেন না। ধীরে ধীরে এগিয়ে যান।",
         "🌟 আজকের ছোট চেষ্টা আগামীকালের বড় সাফল্য হতে পারে।",
@@ -332,11 +283,6 @@ BASE_MESSAGES = {
         "⭐ ছোট পদক্ষেপও আপনাকে সামনে নিয়ে যায়।",
     ],
 
-
-    # --------------------------------------------------------
-    # FAMILY
-    # --------------------------------------------------------
-
     "family": [
         "❤️ পরিবারের মানুষগুলোর খোঁজ নিন।",
         "👨‍👩‍👧 পরিবারের সঙ্গে কিছু সময় কাটান।",
@@ -349,11 +295,6 @@ BASE_MESSAGES = {
         "❤️ বাবা-মায়ের খোঁজ নিন।",
         "👪 পরিবারের সঙ্গে সুন্দর সময় কাটান।",
     ],
-
-
-    # --------------------------------------------------------
-    # HABIT
-    # --------------------------------------------------------
 
     "habit": [
         "✨ আজ একটি ভালো অভ্যাস তৈরি করুন।",
@@ -369,11 +310,6 @@ BASE_MESSAGES = {
         "🧹 নিজের জায়গা পরিষ্কার রাখার অভ্যাস করুন।",
         "📵 প্রয়োজন ছাড়া ফোন ব্যবহার কমান।",
     ],
-
-
-    # --------------------------------------------------------
-    # ISLAMIC
-    # --------------------------------------------------------
 
     "islamic": [
         "☪️ আল্লাহকে স্মরণ করুন এবং ভালো কাজ করার চেষ্টা করুন।",
@@ -429,7 +365,7 @@ MESSAGE_ENDINGS = [
 
 
 # ============================================================
-# BUILD 500+ MESSAGE VARIATIONS
+# BUILD MESSAGE POOL
 # ============================================================
 
 def build_message_pool():
@@ -442,9 +378,7 @@ def build_message_pool():
 
         for message in messages:
 
-            combinations.append(
-                message
-            )
+            combinations.append(message)
 
             for ending in MESSAGE_ENDINGS:
 
@@ -466,13 +400,9 @@ MESSAGE_POOL = build_message_pool()
 # RANDOM MESSAGE
 # ============================================================
 
-def get_random_message(
-    category: str
-) -> str:
+def get_random_message(category: str) -> str:
 
-    messages = MESSAGE_POOL.get(
-        category
-    )
+    messages = MESSAGE_POOL.get(category)
 
     if not messages:
 
@@ -483,10 +413,7 @@ def get_random_message(
 
     if not messages:
 
-        return (
-            "✨ ভালো থাকুন এবং সময়কে "
-            "কাজে লাগান।"
-        )
+        return "✨ ভালো থাকুন এবং সময়কে কাজে লাগান।"
 
     history = _message_history.setdefault(
         category,
@@ -502,16 +429,11 @@ def get_random_message(
     if not available:
 
         history.clear()
-
         available = messages
 
-    message = random.choice(
-        available
-    )
+    message = random.choice(available)
 
-    history.append(
-        message
-    )
+    history.append(message)
 
     if len(history) > 50:
 
@@ -521,57 +443,271 @@ def get_random_message(
 
 
 # ============================================================
-# HOURLY TIME MESSAGE
+# BANGLA DATE / WEEKDAY
 # ============================================================
 
-def get_time_message(
-    now: datetime.datetime
-) -> str:
+BANGLA_WEEKDAYS = {
+    0: "সোমবার",
+    1: "মঙ্গলবার",
+    2: "বুধবার",
+    3: "বৃহস্পতিবার",
+    4: "শুক্রবার",
+    5: "শনিবার",
+    6: "রবিবার",
+}
+
+
+BANGLA_MONTHS = {
+    1: "জানুয়ারি",
+    2: "ফেব্রুয়ারি",
+    3: "মার্চ",
+    4: "এপ্রিল",
+    5: "মে",
+    6: "জুন",
+    7: "জুলাই",
+    8: "আগস্ট",
+    9: "সেপ্টেম্বর",
+    10: "অক্টোবর",
+    11: "নভেম্বর",
+    12: "ডিসেম্বর",
+}
+
+
+def to_bangla_digits(value) -> str:
+
+    translation = str.maketrans(
+        "0123456789",
+        "০১২৩৪৫৬৭৮৯"
+    )
+
+    return str(value).translate(
+        translation
+    )
+
+
+def get_period(hour: int) -> str:
+
+    if hour == 0:
+
+        return "রাত"
+
+    if hour < 6:
+
+        return "রাত"
+
+    if hour < 12:
+
+        return "সকাল"
+
+    if hour == 12:
+
+        return "দুপুর"
+
+    if hour < 17:
+
+        return "দুপুর"
+
+    if hour < 19:
+
+        return "বিকেল"
+
+    return "রাত"
+
+
+def format_bangla_time(now: datetime.datetime) -> str:
 
     hour_24 = now.hour
-
     minute = now.minute
 
     if hour_24 == 0:
 
         display_hour = 12
-        period = "রাত"
 
-    elif hour_24 < 6:
-
-        display_hour = hour_24
-        period = "রাত"
-
-    elif hour_24 < 12:
-
-        display_hour = hour_24
-        period = "সকাল"
-
-    elif hour_24 == 12:
-
-        display_hour = 12
-        period = "দুপুর"
-
-    elif hour_24 < 17:
+    elif hour_24 > 12:
 
         display_hour = hour_24 - 12
-        period = "দুপুর"
-
-    elif hour_24 < 19:
-
-        display_hour = hour_24 - 12
-        period = "বিকেল"
 
     else:
 
-        display_hour = hour_24 - 12
-        period = "রাত"
+        display_hour = hour_24
+
+    period = get_period(hour_24)
 
     return (
-        f"🕐 এখন সময় {display_hour:02d}:{minute:02d} বাজে।\n\n"
-        f"⏰ এখন {period} সময় চলছে।\n\n"
-        f"✨ সময়ের মূল্য দিন এবং প্রয়োজনীয় কাজে "
-        f"মনোযোগ দিন।"
+        f"{period} "
+        f"{to_bangla_digits(display_hour)}:"
+        f"{to_bangla_digits(f'{minute:02d}')} মিনিট"
+    )
+
+
+def format_bangla_date(now: datetime.datetime) -> str:
+
+    day = to_bangla_digits(now.day)
+
+    month = BANGLA_MONTHS.get(
+        now.month,
+        str(now.month)
+    )
+
+    year = to_bangla_digits(now.year)
+
+    return f"{day} {month} {year}"
+
+
+# ============================================================
+# WEATHER TEMPERATURE
+# ============================================================
+
+async def get_temperature_for_city(
+    city: str
+) -> Optional[str]:
+
+    city = (
+        city
+        or "Dhaka"
+    ).strip()
+
+    cache_key = city.lower()
+
+    now = datetime.datetime.now(
+        TZ
+    )
+
+    hour_key = now.strftime(
+        "%Y-%m-%d-%H"
+    )
+
+    cached = _weather_cache.get(
+        cache_key
+    )
+
+    if cached:
+
+        cached_hour, cached_temp = cached
+
+        if cached_hour == hour_key:
+
+            return cached_temp
+
+    try:
+
+        weather_text = await get_weather(
+            city
+        )
+
+        if not weather_text:
+
+            return None
+
+        # OpenWeather এবং wttr.in দুই ক্ষেত্রের
+        # return text থেকেই Celsius বের করা হবে।
+        match = re.search(
+            r"(-?\d+(?:\.\d+)?)\s*°C",
+            weather_text
+        )
+
+        if match:
+
+            temp = match.group(1)
+
+            if temp.endswith(".0"):
+
+                temp = temp[:-2]
+
+            temperature = (
+                f"{to_bangla_digits(temp)}°C"
+            )
+
+            _weather_cache[
+                cache_key
+            ] = (
+                hour_key,
+                temperature
+            )
+
+            return temperature
+
+    except Exception as e:
+
+        print(
+            f"[WEATHER] {city}: {e}"
+        )
+
+    return None
+
+
+# ============================================================
+# HOURLY INFORMATION MESSAGE
+# ============================================================
+
+async def build_hourly_message(
+    user
+) -> str:
+
+    city = (
+        user.city
+        or "Dhaka"
+    )
+
+    user_timezone = (
+        getattr(
+            user,
+            "timezone",
+            None
+        )
+        or DEFAULT_TIMEZONE
+    )
+
+    try:
+
+        user_tz = pytz.timezone(
+            user_timezone
+        )
+
+    except Exception:
+
+        user_tz = TZ
+
+    now = datetime.datetime.now(
+        user_tz
+    )
+
+    time_text = format_bangla_time(
+        now
+    )
+
+    date_text = format_bangla_date(
+        now
+    )
+
+    weekday_text = BANGLA_WEEKDAYS.get(
+        now.weekday(),
+        ""
+    )
+
+    temperature = await get_temperature_for_city(
+        city
+    )
+
+    if temperature:
+
+        temperature_text = temperature
+
+    else:
+
+        temperature_text = (
+            "তথ্য পাওয়া যাচ্ছে না"
+        )
+
+    return (
+        f"🕐 এখন সময়: {time_text}\n"
+        f"📅 তারিখ: {date_text}\n"
+        f"📆 বার: {weekday_text}\n"
+        f"🌡️ তাপমাত্রা: {temperature_text}\n"
+        f"📍 স্থান: {city}\n\n"
+        f"⏰ সময়ের মূল্য দিন এবং প্রয়োজনীয় কাজে "
+        f"মনোযোগ দিন।\n"
+        f"🌿 নিজের যত্ন নিন এবং ভালো থাকুন।"
     )
 
 
@@ -580,21 +716,15 @@ def get_time_message(
 # ============================================================
 
 PRAYER_NAMES = {
-
     "Fajr": "ফজর",
-
     "Dhuhr": "যোহর",
-
     "Asr": "আসর",
-
     "Maghrib": "মাগরিব",
-
     "Isha": "এশা",
 }
 
 
 PRAYER_BENEFITS = {
-
     "Fajr":
         "দিনের শুরু আল্লাহর ইবাদত দিয়ে করার সুন্দর সুযোগ।",
 
@@ -743,18 +873,6 @@ async def send_prayer_reminders(
     bot: Bot
 ):
 
-    now = datetime.datetime.now(
-        TZ
-    )
-
-    current_time = now.strftime(
-        "%H:%M"
-    )
-
-    today = now.strftime(
-        "%Y-%m-%d"
-    )
-
     users = await get_all_users()
 
     for user in users:
@@ -768,6 +886,37 @@ async def send_prayer_reminders(
             city = (
                 user.city
                 or "Dhaka"
+            )
+
+            user_timezone = (
+                getattr(
+                    user,
+                    "timezone",
+                    None
+                )
+                or DEFAULT_TIMEZONE
+            )
+
+            try:
+
+                user_tz = pytz.timezone(
+                    user_timezone
+                )
+
+            except Exception:
+
+                user_tz = TZ
+
+            now = datetime.datetime.now(
+                user_tz
+            )
+
+            current_time = now.strftime(
+                "%H:%M"
+            )
+
+            today = now.strftime(
+                "%Y-%m-%d"
             )
 
             prayer_times = (
@@ -788,10 +937,8 @@ async def send_prayer_reminders(
                 "Isha"
             ):
 
-                api_time = (
-                    prayer_times.get(
-                        prayer_key
-                    )
+                api_time = prayer_times.get(
+                    prayer_key
                 )
 
                 if not api_time:
@@ -816,11 +963,9 @@ async def send_prayer_reminders(
 
                     continue
 
-                message = (
-                    make_prayer_message(
-                        prayer_key,
-                        prayer_time
-                    )
+                message = make_prayer_message(
+                    prayer_key,
+                    prayer_time
                 )
 
                 success = await safe_send(
@@ -967,23 +1112,42 @@ async def send_daily_reminders(
     bot: Bot
 ):
 
-    now = datetime.datetime.now(
-        TZ
-    )
-
-    current_time = now.strftime(
-        "%H:%M"
-    )
-
-    today = now.strftime(
-        "%Y-%m-%d"
-    )
-
     users = await get_all_users()
 
     for user in users:
 
         try:
+
+            user_timezone = (
+                getattr(
+                    user,
+                    "timezone",
+                    None
+                )
+                or DEFAULT_TIMEZONE
+            )
+
+            try:
+
+                user_tz = pytz.timezone(
+                    user_timezone
+                )
+
+            except Exception:
+
+                user_tz = TZ
+
+            now = datetime.datetime.now(
+                user_tz
+            )
+
+            current_time = now.strftime(
+                "%H:%M"
+            )
+
+            today = now.strftime(
+                "%Y-%m-%d"
+            )
 
             for (
                 schedule_time,
@@ -1050,23 +1214,42 @@ async def send_extra_reminders(
     bot: Bot
 ):
 
-    now = datetime.datetime.now(
-        TZ
-    )
-
-    current_time = now.strftime(
-        "%H:%M"
-    )
-
-    today = now.strftime(
-        "%Y-%m-%d"
-    )
-
     users = await get_all_users()
 
     for user in users:
 
         try:
+
+            user_timezone = (
+                getattr(
+                    user,
+                    "timezone",
+                    None
+                )
+                or DEFAULT_TIMEZONE
+            )
+
+            try:
+
+                user_tz = pytz.timezone(
+                    user_timezone
+                )
+
+            except Exception:
+
+                user_tz = TZ
+
+            now = datetime.datetime.now(
+                user_tz
+            )
+
+            current_time = now.strftime(
+                "%H:%M"
+            )
+
+            today = now.strftime(
+                "%Y-%m-%d"
+            )
 
             for (
                 schedule_time,
@@ -1133,31 +1316,7 @@ async def send_hourly_time(
     bot: Bot
 ):
 
-    global _last_hour_sent
-
-    now = datetime.datetime.now(
-        TZ
-    )
-
-    if now.minute != 0:
-
-        return
-
-    hour_key = now.strftime(
-        "%Y-%m-%d-%H"
-    )
-
-    if _last_hour_sent == hour_key:
-
-        return
-
     users = await get_all_users()
-
-    message = get_time_message(
-        now
-    )
-
-    sent_any = False
 
     for user in users:
 
@@ -1167,6 +1326,47 @@ async def send_hourly_time(
 
                 continue
 
+            user_timezone = (
+                getattr(
+                    user,
+                    "timezone",
+                    None
+                )
+                or DEFAULT_TIMEZONE
+            )
+
+            try:
+
+                user_tz = pytz.timezone(
+                    user_timezone
+                )
+
+            except Exception:
+
+                user_tz = TZ
+
+            now = datetime.datetime.now(
+                user_tz
+            )
+
+            # শুধুমাত্র প্রতি ঘণ্টার শুরুতে পাঠাবে।
+            if now.minute != 0:
+
+                continue
+
+            hour_key = (
+                f"{user.user_id}:"
+                f"{now.strftime('%Y-%m-%d-%H')}"
+            )
+
+            if hour_key in _last_hour_sent:
+
+                continue
+
+            message = await build_hourly_message(
+                user
+            )
+
             success = await safe_send(
                 bot,
                 user.user_id,
@@ -1175,7 +1375,9 @@ async def send_hourly_time(
 
             if success:
 
-                sent_any = True
+                _last_hour_sent.add(
+                    hour_key
+                )
 
             await asyncio.sleep(
                 0.03
@@ -1187,10 +1389,6 @@ async def send_hourly_time(
                 f"[HOURLY] User "
                 f"{user.user_id} error: {e}"
             )
-
-    if sent_any:
-
-        _last_hour_sent = hour_key
 
 
 # ============================================================
@@ -1218,10 +1416,28 @@ def cleanup_memory():
         _last_extra_sent.clear()
 
     if len(
+        _last_hour_sent
+    ) > 5000:
+
+        _last_hour_sent.clear()
+
+    if len(
         _message_history
     ) > 100:
 
         _message_history.clear()
+
+    if len(
+        _weather_cache
+    ) > 500:
+
+        _weather_cache.clear()
+
+    if len(
+        _prayer_cache
+    ) > 500:
+
+        _prayer_cache.clear()
 
 
 # ============================================================
@@ -1234,18 +1450,11 @@ async def reminder_loop(
 
     global _scheduler_running
 
-    # --------------------------------------------------------
-    # IMPORTANT
-    # --------------------------------------------------------
-    # application.bot এখানে access করা হচ্ছে task-এর ভিতরে।
-    # start_scheduler() থেকে application.bot সরাসরি access
-    # করা হচ্ছে না।
-    #
-    # ফলে Telegram Application initialize হওয়ার আগেই
-    # ExtBot property access করে crash হবে না।
-    # --------------------------------------------------------
-
     try:
+
+        # application পুরোটা নেওয়া হচ্ছে।
+        # application.bot শুধু এখানে access হবে,
+        # scheduler task তৈরি হওয়ার পরে।
 
         bot = application.bot
 
@@ -1296,7 +1505,7 @@ async def reminder_loop(
     )
 
     print(
-        "[REMINDER] Hourly reminders enabled."
+        "[REMINDER] Hourly time/date/weather reminders enabled."
     )
 
     while _scheduler_running:
@@ -1364,7 +1573,6 @@ def start_scheduler(
 
     _scheduler_running = True
 
-    # IMPORTANT:
     # এখানে application.bot access করা হচ্ছে না।
     # পুরো application task-এর মধ্যে পাঠানো হচ্ছে।
 
@@ -1422,13 +1630,15 @@ async def stop_scheduler():
 # ============================================================
 
 async def reload_reminders(
-    application
+    application_or_bot
 ):
 
     global _scheduler_task
     global _scheduler_running
 
+    # --------------------------------------------------------
     # পুরোনো scheduler বন্ধ
+    # --------------------------------------------------------
 
     if _scheduler_task is not None:
 
@@ -1454,9 +1664,41 @@ async def reload_reminders(
 
     _scheduler_task = None
 
+    # --------------------------------------------------------
     # নতুন scheduler
+    # --------------------------------------------------------
 
     _scheduler_running = True
+
+    # bot.py থেকে application পাঠালে সেটাই ব্যবহার হবে।
+    #
+    # handlers.py থেকে context.bot পাঠানো হলেও
+    # compatibility রাখা হয়েছে।
+
+    if hasattr(
+        application_or_bot,
+        "bot"
+    ):
+
+        application = application_or_bot
+
+    else:
+
+        # পুরোনো handlers.py যদি context.bot পাঠায়,
+        # তাহলে একটি wrapper object তৈরি করা হবে।
+
+        class ApplicationWrapper:
+
+            def __init__(
+                self,
+                bot
+            ):
+
+                self.bot = bot
+
+        application = ApplicationWrapper(
+            application_or_bot
+        )
 
     _scheduler_task = asyncio.create_task(
         reminder_loop(
@@ -1483,7 +1725,11 @@ async def test_reminder(
         "✅ আপনার Automatic Reminder System "
         "কাজ করছে।\n\n"
         "🕌 Prayer Reminder\n"
-        "🕐 Hourly Reminder\n"
+        "🕐 Hourly Time Reminder\n"
+        "📅 Date Reminder\n"
+        "📆 Weekday Reminder\n"
+        "🌡️ Temperature Reminder\n"
+        "📍 Location Reminder\n"
         "🌅 Wake Reminder\n"
         "🍳 Breakfast Reminder\n"
         "📚 Study Reminder\n"
