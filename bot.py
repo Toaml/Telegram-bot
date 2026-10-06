@@ -1,5 +1,4 @@
 import asyncio
-import html
 
 from aiohttp import web, ClientSession, ClientTimeout
 
@@ -263,7 +262,6 @@ video{
                 controlsList="nodownload"
             ></video>
 
-
             <div
                 id="lockLayer"
                 class="lock-layer"
@@ -283,7 +281,6 @@ video{
 
             </div>
 
-
             <div
                 id="loading"
                 class="loading"
@@ -302,7 +299,6 @@ video{
             </div>
 
         </div>
-
 
         <div
             id="status"
@@ -324,7 +320,7 @@ video{
 
 
 // ======================================================
-// URL
+// URL PARAMETERS
 // ======================================================
 
 const params =
@@ -437,7 +433,7 @@ function markAdStarted(){
 
 
 // ======================================================
-// CHECK AD STARTED
+// CHECK AD FLAG
 // ======================================================
 
 function wasAdStarted(){
@@ -563,21 +559,6 @@ async function loadVideo(){
         videoLoaded = true;
 
 
-        player.addEventListener(
-            "error",
-            function(){
-
-                statusElement.textContent =
-                    "❌ ভিডিও লোড করা যায়নি।";
-
-                statusElement.classList.add(
-                    "error"
-                );
-
-            }
-        );
-
-
     }catch(error){
 
         console.error(error);
@@ -621,7 +602,7 @@ function unlockVideo(){
 
 
     statusElement.textContent =
-        "✅ Video Unlocked";
+        "✅ Video Unlocked — Play করুন";
 
     statusElement.classList.remove(
         "error"
@@ -640,11 +621,11 @@ function unlockVideo(){
 
 
     /*
-     * Mobile browser autoplay policy অনুযায়ী
+     * Browser autoplay policy-এর কারণে
      * play() block হতে পারে।
      *
-     * সেক্ষেত্রে controls থাকবে এবং user
-     * Play চাপতে পারবে।
+     * তাই error হলেও video unlocked
+     * থাকবে এবং user Play চাপতে পারবে।
      */
 
     try{
@@ -694,11 +675,6 @@ function handleReturnFromAd(){
 
     if(!adStarted){
 
-        /*
-         * Web App নতুন করে load হলে
-         * session flag থেকেও বুঝতে চেষ্টা করি।
-         */
-
         if(!wasAdStarted()){
 
             return;
@@ -716,14 +692,8 @@ function handleReturnFromAd(){
 
 
     /*
-     * এখানে মূল FIX:
-     *
-     * Ad একই Web App-এর জায়গা নেয় না।
-     * Ad নতুন tab/window-এ খোলা হয়েছে।
-     *
-     * User আবার এই Web App-এ ফিরে এলে
-     * focus/visibility/pageshow থেকে
-     * video unlock হবে।
+     * Ad শুরু হওয়ার পর user যখন আবার
+     * Web App-এ ফিরে আসে তখন unlock হবে।
      */
 
     clearAdFlag();
@@ -743,12 +713,16 @@ openButton.addEventListener(
 
         if(!contentId){
 
+            statusElement.textContent =
+                "❌ Content ID পাওয়া যায়নি।";
+
             return;
 
         }
 
 
         adStarted = true;
+
 
         markAdStarted();
 
@@ -762,24 +736,8 @@ openButton.addEventListener(
         );
 
 
-        /*
-         * =================================================
-         * IMPORTANT FIX
-         * =================================================
-         *
-         * আগের code ছিল:
-         *
-         * window.location.href = "/ad";
-         *
-         * এতে বর্তমান Web App page replace হয়ে
-         * যেত।
-         *
-         * এখন নতুন tab/window ব্যবহার করা হচ্ছে।
-         * ফলে মূল Web App page খোলা থাকবে।
-         */
-
-
         const adUrl =
+            window.location.origin +
             "/ad?content_id=" +
             encodeURIComponent(
                 contentId
@@ -789,13 +747,31 @@ openButton.addEventListener(
         let opened = null;
 
 
+        /*
+         * =================================================
+         * IMPORTANT FIX
+         * =================================================
+         *
+         * আগের code:
+         *
+         * window.location.href = "/ad";
+         *
+         * এতে Web App-এর বর্তমান page
+         * replace হয়ে যাচ্ছিল।
+         *
+         * এখন নতুন window/tab-এ Ad খোলা হচ্ছে।
+         *
+         * ফলে মূল Video Web App page
+         * খোলা থাকে।
+         */
+
+
         try{
 
             opened =
                 window.open(
                     adUrl,
-                    "_blank",
-                    "noopener,noreferrer"
+                    "_blank"
                 );
 
         }catch(error){
@@ -809,16 +785,39 @@ openButton.addEventListener(
 
 
         /*
-         * Telegram WebView-এ window.open
-         * কখনো null return করতে পারে,
-         * যদিও নতুন page খুলে গেছে।
+         * Telegram Web App থাকলে openLink()
+         * ব্যবহার করার চেষ্টা করা হবে।
          *
-         * তাই একই page-এ location.href
-         * fallback করা হচ্ছে না।
-         *
-         * কারণ সেটাই Mobile Back সমস্যার
-         * মূল কারণ ছিল।
+         * এটি মূল Web App-কে replace না করে
+         * external link খোলার জন্য ব্যবহার করা হয়।
          */
+
+        if(
+            !opened &&
+            window.Telegram &&
+            window.Telegram.WebApp &&
+            typeof window.Telegram.WebApp.openLink ===
+            "function"
+        ){
+
+            try{
+
+                window.Telegram.WebApp.openLink(
+                    adUrl
+                );
+
+                opened = true;
+
+            }catch(error){
+
+                console.log(
+                    "Telegram openLink error:",
+                    error
+                );
+
+            }
+
+        }
 
 
         if(!opened){
@@ -828,9 +827,8 @@ openButton.addEventListener(
             );
 
             statusElement.textContent =
-                "⚠️ বিজ্ঞাপনটি নতুন পেজে খুলুন। "
-                + "Browser popup বন্ধ থাকলে "
-                + "অনুমতি দিন।";
+                "⚠️ বিজ্ঞাপন খোলা যায়নি। "
+                + "Popup permission চালু করুন।";
 
         }
 
@@ -839,16 +837,22 @@ openButton.addEventListener(
 
 
 // ======================================================
-// FOCUS
+// WINDOW FOCUS
 // ======================================================
 
 window.addEventListener(
     "focus",
     function(){
 
+        if(!adStarted){
+
+            return;
+
+        }
+
         setTimeout(
             handleReturnFromAd,
-            300
+            500
         );
 
     }
@@ -856,7 +860,7 @@ window.addEventListener(
 
 
 // ======================================================
-// VISIBILITY
+// VISIBILITY CHANGE
 // ======================================================
 
 document.addEventListener(
@@ -868,10 +872,14 @@ document.addEventListener(
             "visible"
         ){
 
-            setTimeout(
-                handleReturnFromAd,
-                300
-            );
+            if(adStarted){
+
+                setTimeout(
+                    handleReturnFromAd,
+                    500
+                );
+
+            }
 
         }
 
@@ -887,38 +895,36 @@ window.addEventListener(
     "pageshow",
     function(){
 
-        setTimeout(
-            handleReturnFromAd,
-            300
-        );
+        if(
+            adStarted ||
+            wasAdStarted()
+        ){
+
+            setTimeout(
+                handleReturnFromAd,
+                500
+            );
+
+        }
 
     }
 );
 
 
 // ======================================================
-// WINDOW MESSAGE
+// PAGE HIDE
 // ======================================================
 
 window.addEventListener(
-    "message",
-    function(event){
+    "pagehide",
+    function(){
 
         /*
-         * Future compatibility.
-         * Ad page থেকে message এলে unlock করা যাবে।
+         * এখানে video unlock করা হবে না।
+         *
+         * শুধু page hide হওয়ার event
+         * browser-কে handle করতে দেওয়া হচ্ছে।
          */
-
-        if(
-            event.data ===
-            "AD_COMPLETED"
-        ){
-
-            clearAdFlag();
-
-            unlockVideo();
-
-        }
 
     }
 );
@@ -929,38 +935,6 @@ window.addEventListener(
 // ======================================================
 
 loadVideo();
-
-
-// ======================================================
-// EXISTING AD FLAG
-// ======================================================
-
-/*
- * যদি browser/WebView Web App page-কে
- * restore করে, session flag থাকলে
- * return detect হবে।
- */
-
-setTimeout(
-    function(){
-
-        if(
-            wasAdStarted() &&
-            document.visibilityState ===
-            "visible"
-        ){
-
-            /*
-             * শুধু page reload হয়েছে এমন অবস্থায়
-             * সঙ্গে সঙ্গে unlock না করে focus/page
-             * event-এর ওপর নির্ভর করি।
-             */
-
-        }
-
-    },
-    500
-);
 
 
 })();
@@ -1052,6 +1026,10 @@ async def content_api(request):
 
             "media_type":
                 content.media_type
+        },
+        headers={
+            "Cache-Control":
+                "no-store"
         }
     )
 
@@ -1125,24 +1103,26 @@ async def video_stream(request):
         )
 
 
+    if application_global is None:
+
+        return web.Response(
+            text="Telegram application not ready",
+            status=503
+        )
+
+
     try:
 
-        if application_global is None:
-
-            return web.Response(
-                text="Telegram application not ready",
-                status=503
-            )
-
-
-        telegram_file =
+        telegram_file = (
             await application_global.bot.get_file(
                 content.file_id
             )
+        )
 
 
-        file_url =
+        file_url = (
             telegram_file.file_path
+        )
 
 
         if not file_url:
@@ -1153,17 +1133,14 @@ async def video_stream(request):
             )
 
 
-        /*
-         * Telegram file_path যদি relative হয়,
-         * server-side bot token দিয়ে URL তৈরি হবে।
-         *
-         * এই URL browser-এর কাছে expose করা হবে না।
-         */
+        # Telegram file_path যদি relative হয়,
+        # server-side bot token দিয়ে URL তৈরি হবে।
+        #
+        # এই URL browser-এর কাছে expose করা হবে না।
 
-        if not file_url.startswith(
-            "http://"
-        ) and not file_url.startswith(
-            "https://"
+        if not (
+            file_url.startswith("http://")
+            or file_url.startswith("https://")
         ):
 
             file_url = (
@@ -1177,10 +1154,9 @@ async def video_stream(request):
         request_headers = {}
 
 
-        range_header =
-            request.headers.get(
-                "Range"
-            )
+        range_header = (
+            request.headers.get("Range")
+        )
 
 
         if range_header:
@@ -1209,11 +1185,12 @@ async def video_stream(request):
                 response_headers = {}
 
 
-                content_type =
+                content_type = (
                     upstream.headers.get(
                         "Content-Type",
                         "video/mp4"
                     )
+                )
 
 
                 response_headers[
@@ -1248,15 +1225,9 @@ async def video_stream(request):
                 ] = "bytes"
 
 
-                if upstream.headers.get(
-                    "Last-Modified"
-                ):
-
-                    response_headers[
-                        "Last-Modified"
-                    ] = upstream.headers[
-                        "Last-Modified"
-                    ]
+                response_headers[
+                    "Cache-Control"
+                ] = "no-store"
 
 
                 response = web.StreamResponse(
@@ -1304,9 +1275,7 @@ async def video_stream(request):
                 return response
 
 
-    except (
-        asyncio.CancelledError
-    ):
+    except asyncio.CancelledError:
 
         raise
 
@@ -1336,16 +1305,24 @@ async def ad_redirect(request):
             text="""
 <!DOCTYPE html>
 <html lang="bn">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
+
+<meta
+name="viewport"
+content="width=device-width,
+initial-scale=1.0"
+>
+
 <title>Advertisement</title>
+
 </head>
 
 <body style="
 background:#111;
-color:#fff;
+color:white;
 font-family:Arial;
 text-align:center;
 padding:60px 20px;
@@ -1358,6 +1335,7 @@ Back চাপুন এবং ভিডিওতে ফিরে যান।
 </p>
 
 </body>
+
 </html>
 """,
             content_type="text/html",
@@ -1371,16 +1349,24 @@ Back চাপুন এবং ভিডিওতে ফিরে যান।
             text="""
 <!DOCTYPE html>
 <html lang="bn">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
+
+<meta
+name="viewport"
+content="width=device-width,
+initial-scale=1.0"
+>
+
 <title>Advertisement</title>
+
 </head>
 
 <body style="
 background:#111;
-color:#fff;
+color:white;
 font-family:Arial;
 text-align:center;
 padding:60px 20px;
@@ -1393,6 +1379,7 @@ Back চাপুন এবং ভিডিওতে ফিরে যান।
 </p>
 
 </body>
+
 </html>
 """,
             content_type="text/html",
@@ -1400,15 +1387,12 @@ Back চাপুন এবং ভিডিওতে ফিরে যান।
         )
 
 
-    /*
-     * IMPORTANT:
-     *
-     * এই redirect server-side response।
-     *
-     * Telegram message-এ SmartLink দেওয়া হচ্ছে না।
-     *
-     * Web App থেকে /ad নতুন tab-এ open হচ্ছে।
-     */
+    # Server-side redirect।
+    #
+    # Telegram message-এর মধ্যে SmartLink
+    # সরাসরি দেওয়া হচ্ছে না।
+    #
+    # Web App থেকে /ad নতুন window-তে খোলা হয়।
 
     raise web.HTTPFound(
         ADSTERRA_SMARTLINK
@@ -1445,6 +1429,10 @@ async def start_web_server():
     app = web.Application()
 
 
+    # -----------------------------------------------------
+    # HEALTH
+    # -----------------------------------------------------
+
     app.router.add_get(
         "/",
         health_check
@@ -1457,11 +1445,19 @@ async def start_web_server():
     )
 
 
+    # -----------------------------------------------------
+    # WEB APP
+    # -----------------------------------------------------
+
     app.router.add_get(
         "/app",
         webapp_page
     )
 
+
+    # -----------------------------------------------------
+    # CONTENT API
+    # -----------------------------------------------------
 
     app.router.add_get(
         "/api/content/{content_id}",
@@ -1469,17 +1465,29 @@ async def start_web_server():
     )
 
 
+    # -----------------------------------------------------
+    # VIDEO
+    # -----------------------------------------------------
+
     app.router.add_get(
         "/video/{content_id}",
         video_stream
     )
 
 
+    # -----------------------------------------------------
+    # AD
+    # -----------------------------------------------------
+
     app.router.add_get(
         "/ad",
         ad_redirect
     )
 
+
+    # -----------------------------------------------------
+    # START SERVER
+    # -----------------------------------------------------
 
     runner = web.AppRunner(
         app
@@ -1500,9 +1508,9 @@ async def start_web_server():
 
 
     print(
-        "🌐 Web server running on "
-        f"0.0.0.0:{PORT}"
+        f"🌐 Web server running on port {PORT}"
     )
+
 
     print(
         "🔗 Web App:",
@@ -1520,7 +1528,7 @@ async def main():
 
 
     # =====================================================
-    # TOKEN
+    # BOT TOKEN CHECK
     # =====================================================
 
     if not BOT_TOKEN:
@@ -1612,7 +1620,7 @@ async def main():
 
 
     # =====================================================
-    # ADMIN MEDIA
+    # ADMIN MEDIA UPLOAD
     # =====================================================
 
     application.add_handler(
@@ -1675,7 +1683,7 @@ async def main():
 
 
     # =====================================================
-    # NOTIFICATION
+    # NOTIFICATIONS
     # =====================================================
 
     application.add_handler(
@@ -1699,7 +1707,7 @@ async def main():
 
 
     # =====================================================
-    # ADMIN REQUESTS
+    # ADMIN REQUESTS CALLBACK
     # =====================================================
 
     application.add_handler(
@@ -1723,7 +1731,7 @@ async def main():
 
 
     # =====================================================
-    # REMINDERS
+    # REMINDER SCHEDULER
     # =====================================================
 
     start_scheduler(
@@ -1744,7 +1752,7 @@ async def main():
 
 
     # =====================================================
-    # TELEGRAM START
+    # START TELEGRAM
     # =====================================================
 
     print(
@@ -1764,7 +1772,7 @@ async def main():
 
 
     # =====================================================
-    # KEEP ALIVE
+    # KEEP RUNNING
     # =====================================================
 
     await asyncio.Event().wait()
