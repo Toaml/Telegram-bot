@@ -25,6 +25,18 @@ from ad_system import attach_ad_to_keyboard
 
 
 # =========================================================
+# ADMIN SOCIAL LINKS
+# =========================================================
+
+ADMIN_SOCIAL_LINKS = {
+    "facebook": "https://www.facebook.com/share/19PVrFHGk2/",
+    "tiktok": "https://www.tiktok.com/@tomalchowdhury20",
+    "whatsapp": "https://wa.me/+8801311328266",
+    "telegram": "https://t.me/tomalchowdhury2"
+}
+
+
+# =========================================================
 # GLOBAL ADMIN UPLOAD SESSION
 # =========================================================
 
@@ -69,6 +81,7 @@ CONTENT_REQUEST_WORDS = {
 
 
 def normalize_user_query(text: str) -> str:
+
     if not text:
         return ""
 
@@ -95,32 +108,243 @@ def normalize_user_query(text: str) -> str:
     return text.strip()
 
 
-def looks_like_content_request(text: str) -> bool:
-    """
-    User content চাইছে কি না সেটা বোঝে।
+# =========================================================
+# ADMIN SOCIAL REQUEST DETECTOR
+# =========================================================
 
-    উদাহরণ:
-    Tiktok
-    Tiktok দাও
-    গান
-    গান দাও
-    মুভি
-    Movie দেন
-    Natok
+def detect_admin_social_request(text: str):
     """
+    User যদি Admin-এর Social ID/Link চায়
+    তাহলে social platform return করবে।
+
+    IMPORTANT:
+    শুধু "Tiktok" লিখলে এখানে match করবে না।
+    কারণ Tiktok saved content হিসেবেও থাকতে পারে।
+
+    Match examples:
+    - Admin Facebook দাও
+    - এডমিনের Facebook আইডি দেও
+    - admin tiktok
+    - এডমিনের TikTok লিংক দেন
+    - WhatsApp admin দেন
+    - এডমিনের Telegram আইডি দাও
+    """
+
+    if not text:
+        return None
+
+    q = normalize_user_query(text)
+
+    if not q:
+        return None
+
+    # Admin related words
+    admin_words = [
+        "admin",
+        "এডমিন",
+        "অ্যাডমিন",
+        "এডমিনের",
+        "অ্যাডমিনের",
+        "বস",
+        "boss"
+    ]
+
+    # Request / link related words
+    request_words = [
+        "দাও",
+        "দে",
+        "দেন",
+        "দেও",
+        "দিয়েন",
+        "দিন",
+        "পাঠাও",
+        "পাঠান",
+        "দেখাও",
+        "দেখান",
+        "চাই",
+        "দাওতো",
+        "dao",
+        "deo",
+        "de",
+        "den",
+        "din",
+        "send",
+        "give",
+        "show",
+        "link",
+        "লিংক",
+        "আইডি",
+        "id",
+        "profile",
+        "প্রোফাইল"
+    ]
+
+    has_admin = any(
+        word in q
+        for word in admin_words
+    )
+
+    has_request = any(
+        word in q
+        for word in request_words
+    )
+
+    # -----------------------------------------------------
+    # Facebook
+    # -----------------------------------------------------
+
+    has_facebook = any(
+        word in q
+        for word in [
+            "facebook",
+            "ফেসবুক"
+        ]
+    )
+
+    if has_facebook and (
+        has_admin or has_request
+    ):
+        return "facebook"
+
+    # -----------------------------------------------------
+    # TikTok
+    # -----------------------------------------------------
+
+    has_tiktok = any(
+        word in q
+        for word in [
+            "tiktok",
+            "tik tok",
+            "টিকটক"
+        ]
+    )
+
+    if has_tiktok and (
+        has_admin or has_request
+    ):
+        return "tiktok"
+
+    # -----------------------------------------------------
+    # WhatsApp
+    # -----------------------------------------------------
+
+    has_whatsapp = any(
+        word in q
+        for word in [
+            "whatsapp",
+            "whatapp",
+            "হোয়াটসঅ্যাপ",
+            "হোয়াটসঅ্যাপ",
+            "হোয়াটসঅ্যাপ",
+            "হোয়াটসাপ"
+        ]
+    )
+
+    if has_whatsapp and (
+        has_admin or has_request
+    ):
+        return "whatsapp"
+
+    # -----------------------------------------------------
+    # Telegram
+    # -----------------------------------------------------
+
+    has_telegram = any(
+        word in q
+        for word in [
+            "telegram",
+            "টেলিগ্রাম"
+        ]
+    )
+
+    if has_telegram and (
+        has_admin or has_request
+    ):
+        return "telegram"
+
+    return None
+
+
+# =========================================================
+# SEND ADMIN SOCIAL LINK
+# =========================================================
+
+async def send_admin_social_link(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    social_type: str
+):
+
+    link = ADMIN_SOCIAL_LINKS.get(
+        social_type
+    )
+
+    if not link:
+        return False
+
+    names = {
+        "facebook": "Facebook",
+        "tiktok": "TikTok",
+        "whatsapp": "WhatsApp",
+        "telegram": "Telegram"
+    }
+
+    emojis = {
+        "facebook": "📘",
+        "tiktok": "🎵",
+        "whatsapp": "💬",
+        "telegram": "✈️"
+    }
+
+    name = names.get(
+        social_type,
+        "Social"
+    )
+
+    emoji = emojis.get(
+        social_type,
+        "🔗"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                f"{emoji} Admin {name}",
+                url=link
+            )
+        ]
+    ])
+
+    await update.message.reply_text(
+        f"{emoji} *Admin {name}*\n\n"
+        f"নিচের বাটনে ক্লিক করে Admin-এর {name} প্রোফাইলে যান: 👇",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+    return True
+
+
+# =========================================================
+# CONTENT REQUEST CHECK
+# =========================================================
+
+def looks_like_content_request(text: str):
 
     q = normalize_user_query(text)
 
     if not q:
         return False
 
-    words = set(q.split())
+    words = set(
+        q.split()
+    )
 
-    # Request/action words
-    if words.intersection(CONTENT_REQUEST_WORDS):
+    if words.intersection(
+        CONTENT_REQUEST_WORDS
+    ):
         return True
 
-    # Common content type words
     content_words = {
         "ভিডিও",
         "video",
@@ -147,7 +371,9 @@ def looks_like_content_request(text: str) -> bool:
         "waaz"
     }
 
-    if words.intersection(content_words):
+    if words.intersection(
+        content_words
+    ):
         return True
 
     return False
@@ -211,7 +437,9 @@ async def start_handler(
     ]
 
     reply_markup = attach_ad_to_keyboard(
-        InlineKeyboardMarkup(keyboard)
+        InlineKeyboardMarkup(
+            keyboard
+        )
     )
 
     welcome_text = (
@@ -245,6 +473,11 @@ async def help_handler(
         "• `গান`\n"
         "• `মুভি দাও`\n"
         "• `ব্যাচেলর পয়েন্ট ভিডিও দেও`\n"
+        "• Admin-এর Social ID চাইলে লিখুন:\n"
+        "  `Admin Facebook দাও`\n"
+        "  `Admin TikTok দাও`\n"
+        "  `Admin WhatsApp দাও`\n"
+        "  `Admin Telegram দাও`\n"
         "• অ্যাডমিন ভিডিও/অডিও পাঠালে সরাসরি আপলোড মোড চালু হবে।"
     )
 
@@ -325,7 +558,9 @@ async def category_callback_handler(
     user_id = query.from_user.id
     data = query.data
 
-    session = admin_upload_sessions.get(user_id)
+    session = admin_upload_sessions.get(
+        user_id
+    )
 
     if not session:
 
@@ -336,10 +571,6 @@ async def category_callback_handler(
         )
 
         return
-
-    # -----------------------------------------------------
-    # EDIT NAME
-    # -----------------------------------------------------
 
     if data == "admin_edit_name_btn":
 
@@ -352,10 +583,6 @@ async def category_callback_handler(
 
         return
 
-    # -----------------------------------------------------
-    # CUSTOM CATEGORY
-    # -----------------------------------------------------
-
     if data == "admin_custom_cat_btn":
 
         session["step"] = "WAITING_CUSTOM_CAT"
@@ -366,10 +593,6 @@ async def category_callback_handler(
         )
 
         return
-
-    # -----------------------------------------------------
-    # CANCEL
-    # -----------------------------------------------------
 
     if data == "admin_cancel_btn":
 
@@ -384,17 +607,18 @@ async def category_callback_handler(
 
         return
 
-    # -----------------------------------------------------
-    # CATEGORY PAGINATION
-    # -----------------------------------------------------
-
-    if data.startswith("admin_cat_page:"):
+    if data.startswith(
+        "admin_cat_page:"
+    ):
 
         try:
+
             page = int(
                 data.split(":")[1]
             )
+
         except Exception:
+
             page = 0
 
         await query.edit_message_reply_markup(
@@ -406,11 +630,9 @@ async def category_callback_handler(
 
         return
 
-    # -----------------------------------------------------
-    # CATEGORY SELECT
-    # -----------------------------------------------------
-
-    if data.startswith("admin_cat:"):
+    if data.startswith(
+        "admin_cat:"
+    ):
 
         cat_name = data.split(
             ":",
@@ -436,7 +658,9 @@ async def finalize_content_save(
     category: str
 ):
 
-    session = admin_upload_sessions.get(user_id)
+    session = admin_upload_sessions.get(
+        user_id
+    )
 
     if not session:
         return
@@ -461,7 +685,10 @@ async def finalize_content_save(
             category=category,
             file_id=file_id,
             media_type=media_type,
-            keywords=f"{title.lower()}, {category.lower()}",
+            keywords=(
+                f"{title.lower()}, "
+                f"{category.lower()}"
+            ),
             uploader_id=user_id
         )
 
@@ -540,16 +767,16 @@ async def edit_saved_content_callback(
     data = query.data
     user_id = query.from_user.id
 
-    # -----------------------------------------------------
-    # DELETE
-    # -----------------------------------------------------
-
-    if data.startswith("del_c_"):
+    if data.startswith(
+        "del_c_"
+    ):
 
         try:
+
             cid = int(
                 data.split("_")[2]
             )
+
         except Exception:
 
             await query.message.reply_text(
@@ -575,16 +802,16 @@ async def edit_saved_content_callback(
 
         return
 
-    # -----------------------------------------------------
-    # EDIT TITLE
-    # -----------------------------------------------------
-
-    if data.startswith("edit_cname_"):
+    if data.startswith(
+        "edit_cname_"
+    ):
 
         try:
+
             cid = int(
                 data.split("_")[2]
             )
+
         except Exception:
 
             await query.message.reply_text(
@@ -652,7 +879,6 @@ async def send_content_to_user(
 
     try:
 
-        # Ad keyboard
         keyboard = attach_ad_to_keyboard(
             InlineKeyboardMarkup([])
         )
@@ -728,7 +954,9 @@ async def save_content_request(
             query=text
         )
 
-        db_sess.add(req)
+        db_sess.add(
+            req
+        )
 
         await db_sess.commit()
 
@@ -936,6 +1164,7 @@ async def show_category_content(
         title = item.title
 
         if len(title) > 45:
+
             title = title[:42] + "..."
 
         keyboard.append([
@@ -1065,10 +1294,6 @@ async def user_callback_handler(
     query = update.callback_query
     data = query.data
 
-    # -----------------------------------------------------
-    # AVAILABLE CONTENT
-    # -----------------------------------------------------
-
     if data == "btn_categories_list":
 
         await query.answer()
@@ -1080,10 +1305,6 @@ async def user_callback_handler(
         )
 
         return
-
-    # -----------------------------------------------------
-    # CATEGORY PAGINATION
-    # -----------------------------------------------------
 
     if data.startswith(
         "user_categories:"
@@ -1108,10 +1329,6 @@ async def user_callback_handler(
         )
 
         return
-
-    # -----------------------------------------------------
-    # CATEGORY SELECT
-    # -----------------------------------------------------
 
     if data.startswith(
         "user_cat:"
@@ -1141,10 +1358,6 @@ async def user_callback_handler(
 
         return
 
-    # -----------------------------------------------------
-    # CONTENT SELECT
-    # -----------------------------------------------------
-
     if data.startswith(
         "user_content:"
     ):
@@ -1172,10 +1385,6 @@ async def user_callback_handler(
 
         return
 
-    # -----------------------------------------------------
-    # SEARCH AGAIN
-    # -----------------------------------------------------
-
     if data == "btn_search_prompt":
 
         await query.answer()
@@ -1192,10 +1401,6 @@ async def user_callback_handler(
         )
 
         return
-
-    # -----------------------------------------------------
-    # OTHER OLD BUTTONS
-    # -----------------------------------------------------
 
     if data == "btn_ai_help":
 
@@ -1280,11 +1485,9 @@ async def handle_user_text(
 
     if session:
 
-        step = session.get("step")
-
-        # -------------------------------------------------
-        # TITLE
-        # -------------------------------------------------
+        step = session.get(
+            "step"
+        )
 
         if step == "WAITING_TITLE":
 
@@ -1306,10 +1509,6 @@ async def handle_user_text(
 
             return
 
-        # -------------------------------------------------
-        # CUSTOM CATEGORY
-        # -------------------------------------------------
-
         elif step == "WAITING_CUSTOM_CAT":
 
             await finalize_content_save(
@@ -1319,10 +1518,6 @@ async def handle_user_text(
             )
 
             return
-
-        # -------------------------------------------------
-        # EDIT EXISTING TITLE
-        # -------------------------------------------------
 
         elif step == "EDITING_EXISTING_TITLE":
 
@@ -1403,28 +1598,43 @@ async def handle_user_text(
             return
 
     # =====================================================
-    # 🔥 UNIVERSAL DATABASE CONTENT SEARCH
+    # 🔥 ADMIN SOCIAL LINK
     #
-    # IMPORTANT:
-    # AI-এর আগে database search হবে।
+    # এটা CONTENT SEARCH-এর আগে।
     #
-    # তাই:
+    # উদাহরণ:
+    #
+    # Admin Facebook দাও
+    # এডমিনের Facebook আইডি দেও
+    # Admin TikTok দাও
+    # Admin WhatsApp দেন
+    # Admin Telegram আইডি দাও
+    #
+    # কিন্তু শুধু:
     #
     # Tiktok
-    # Tiktok দাও
-    # Tiktok দে
-    # Tiktok দেন
-    # Tiktok দেও
     #
-    # গান
-    # গান দাও
-    #
-    # মুভি
-    # মুভি দাও
-    #
-    # Custom Category
-    #
-    # সব আগে database-এ যাবে।
+    # হলে এটা এখানে ধরা হবে না।
+    # তখন database content search হবে।
+    # =====================================================
+
+    social_type = detect_admin_social_request(
+        text
+    )
+
+    if social_type:
+
+        sent_social = await send_admin_social_link(
+            update,
+            context,
+            social_type
+        )
+
+        if sent_social:
+            return
+
+    # =====================================================
+    # UNIVERSAL DATABASE CONTENT SEARCH
     # =====================================================
 
     content_item = await search_media(
@@ -1458,7 +1668,9 @@ async def handle_user_text(
     # CONTENT NOT FOUND
     # =====================================================
 
-    if looks_like_content_request(text):
+    if looks_like_content_request(
+        text
+    ):
 
         await save_content_request(
             update,
@@ -1678,8 +1890,7 @@ async def notifications_menu(
         return (
             "✅ ON"
             if val
-            else
-            "❌ OFF"
+            else "❌ OFF"
         )
 
     keyboard = [
