@@ -116,12 +116,6 @@ def detect_admin_social_request(text: str):
     """
     শুধুমাত্র Admin-এর Social ID/Link চাওয়া হলে match করবে।
 
-    IMPORTANT:
-    শুধু TikTok/Facebook/WhatsApp/Telegram লিখলে
-    Admin Social হিসেবে ধরা হবে না।
-
-    উদাহরণ:
-
     Admin Tiktok
     Admin Tiktok ID দেও
     Admin Tiktok ID দাও
@@ -151,10 +145,6 @@ def detect_admin_social_request(text: str):
 
     words = set(q.split())
 
-    # -----------------------------------------------------
-    # ADMIN WORDS
-    # -----------------------------------------------------
-
     admin_words = {
         "admin",
         "এডমিন",
@@ -167,29 +157,12 @@ def detect_admin_social_request(text: str):
         "boss"
     }
 
-    # -----------------------------------------------------
-    # VERY IMPORTANT
-    #
-    # Admin শব্দ না থাকলে কখনো Social Link return করবে না।
-    #
-    # তাই:
-    # Tiktok
-    # Tiktok দাও
-    # Tiktok দেও
-    #
-    # সব database search-এ যাবে।
-    # -----------------------------------------------------
-
     has_admin = bool(
         words.intersection(admin_words)
     )
 
     if not has_admin:
         return None
-
-    # -----------------------------------------------------
-    # FACEBOOK
-    # -----------------------------------------------------
 
     facebook_words = {
         "facebook",
@@ -198,10 +171,6 @@ def detect_admin_social_request(text: str):
 
     if words.intersection(facebook_words):
         return "facebook"
-
-    # -----------------------------------------------------
-    # TIKTOK
-    # -----------------------------------------------------
 
     tiktok_words = {
         "tiktok",
@@ -214,10 +183,6 @@ def detect_admin_social_request(text: str):
     ):
         return "tiktok"
 
-    # -----------------------------------------------------
-    # WHATSAPP
-    # -----------------------------------------------------
-
     whatsapp_words = {
         "whatsapp",
         "whatapp",
@@ -229,10 +194,6 @@ def detect_admin_social_request(text: str):
 
     if words.intersection(whatsapp_words):
         return "whatsapp"
-
-    # -----------------------------------------------------
-    # TELEGRAM
-    # -----------------------------------------------------
 
     telegram_words = {
         "telegram",
@@ -841,7 +802,7 @@ async def cancel_command(
 
 
 # =========================================================
-# SEND CONTENT
+# SEND CONTENT TO USER
 # =========================================================
 
 async def send_content_to_user(
@@ -858,6 +819,10 @@ async def send_content_to_user(
     )
 
     try:
+
+        # =============================================
+        # AD WEB APP BUTTON
+        # =============================================
 
         keyboard = attach_ad_to_keyboard(
             InlineKeyboardMarkup([])
@@ -1213,7 +1178,19 @@ async def send_selected_content(
         f"📂 ক্যাটাগরি: {content_item.category}"
     )
 
+    # =============================================
+    # AD WEB APP BUTTON
+    # =============================================
+
+    keyboard = attach_ad_to_keyboard(
+        InlineKeyboardMarkup([])
+    )
+
     try:
+
+        # =========================================
+        # VIDEO
+        # =========================================
 
         if content_item.media_type == "video":
 
@@ -1221,8 +1198,13 @@ async def send_selected_content(
                 chat_id=query.from_user.id,
                 video=content_item.file_id,
                 caption=caption,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=keyboard
             )
+
+        # =========================================
+        # AUDIO
+        # =========================================
 
         elif content_item.media_type == "audio":
 
@@ -1230,8 +1212,13 @@ async def send_selected_content(
                 chat_id=query.from_user.id,
                 audio=content_item.file_id,
                 caption=caption,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=keyboard
             )
+
+        # =========================================
+        # PHOTO
+        # =========================================
 
         elif content_item.media_type == "photo":
 
@@ -1239,8 +1226,13 @@ async def send_selected_content(
                 chat_id=query.from_user.id,
                 photo=content_item.file_id,
                 caption=caption,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=keyboard
             )
+
+        # =========================================
+        # DOCUMENT
+        # =========================================
 
         else:
 
@@ -1248,7 +1240,8 @@ async def send_selected_content(
                 chat_id=query.from_user.id,
                 document=content_item.file_id,
                 caption=caption,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=keyboard
             )
 
     except Exception as e:
@@ -1579,21 +1572,6 @@ async def handle_user_text(
 
     # =====================================================
     # ADMIN SOCIAL LINK
-    #
-    # IMPORTANT:
-    # detect_admin_social_request()
-    # এখন শুধুমাত্র Admin/এডমিন/বস শব্দ থাকলে
-    # Social request হিসেবে match করবে।
-    #
-    # তাই:
-    #
-    # Tiktok
-    # Tiktok দেও
-    # Tiktok দাও
-    # Tiktok deo
-    # Tiktok দেন
-    #
-    # database search-এ যাবে।
     # =====================================================
 
     social_type = detect_admin_social_request(
@@ -1997,4 +1975,4 @@ async def toggle_notification_callback(
         await notifications_menu(
             update,
             context
-)
+    )
