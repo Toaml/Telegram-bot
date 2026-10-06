@@ -2,16 +2,15 @@ import asyncio
 from aiohttp import web
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    CallbackQueryHandler, ConversationHandler, filters
+    CallbackQueryHandler, filters
 )
 from config import BOT_TOKEN, PORT
 from database import init_db
 from reminder import start_scheduler, reload_reminders
 from handlers import (
-    start_handler, help_handler, media_upload_init, media_title_received,
-    category_callback_handler, custom_category_received, edit_saved_content_callback,
-    save_existing_title_edit, cancel_conversation, handle_user_text,
-    UPLOAD_TITLE, UPLOAD_CATEGORY, UPLOAD_CUSTOM_CAT, EDIT_EXISTING_TITLE
+    start_handler, help_handler, media_upload_init, category_callback_handler,
+    edit_saved_content_callback, handle_user_text, cancel_command,
+    notifications_menu, toggle_notification_callback
 )
 from admin_handlers import (
     admin_panel, admin_stats, broadcast_command, view_requests
@@ -37,38 +36,33 @@ async def main():
 
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # আপলোড এবং এডিট কনভারসেশন হ্যান্ডলার
-    upload_conv = ConversationHandler(
-        entry_points=[
-            MessageHandler(filters.VIDEO | filters.AUDIO | filters.PHOTO | filters.Document.ALL, media_upload_init),
-            CallbackQueryHandler(edit_saved_content_callback, pattern="^edit_cname_")
-        ],
-        states={
-            UPLOAD_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, media_title_received)],
-            UPLOAD_CATEGORY: [CallbackQueryHandler(category_callback_handler, pattern="^(admin_cat|admin_edit_name_btn|admin_custom_cat_btn|admin_cancel_btn)")],
-            UPLOAD_CUSTOM_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, custom_category_received)],
-            EDIT_EXISTING_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_existing_title_edit)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel_conversation)]
-    )
-
+    # ১. কমান্ড হ্যান্ডলার
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("help", help_handler))
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CommandHandler("stats", admin_stats))
     application.add_handler(CommandHandler("broadcast", broadcast_command))
-    
-    application.add_handler(upload_conv)
-    
+    application.add_handler(CommandHandler("cancel", cancel_command))
+    application.add_handler(CommandHandler("notifications", notifications_menu))
+
+    # ২. মিডিয়া আপলোড (ভিডিও/ছবি/অডিও পাঠালে)
+    application.add_handler(MessageHandler(filters.VIDEO | filters.AUDIO | filters.PHOTO | filters.Document.ALL, media_upload_init))
+
+    # ৩. সব ধরনের বাটন হ্যান্ডলার (ক্যাটাগরি, এডিট নেম, কাস্টম ক্যাটাগরি, ডিলিট)
+    application.add_handler(CallbackQueryHandler(category_callback_handler, pattern="^(admin_cat|admin_edit_name_btn|admin_custom_cat_btn|admin_cancel_btn)"))
+    application.add_handler(CallbackQueryHandler(edit_saved_content_callback, pattern="^(edit_cname_|del_c_)"))
+    application.add_handler(CallbackQueryHandler(toggle_notification_callback, pattern="^toggle_"))
     application.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
     application.add_handler(CallbackQueryHandler(view_requests, pattern="^admin_view_requests$"))
-    application.add_handler(CallbackQueryHandler(edit_saved_content_callback, pattern="^del_c_"))
-    
+
+    # ৪. সাধারণ টেক্সট ও এআই মেসেজ হ্যান্ডলার
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_text))
 
+    # শিডিউলার আরম্ভ
     start_scheduler(application.bot)
     await reload_reminders(application.bot)
 
+    # হেলথ চেক সার্ভার
     await start_web_server()
     print(f"✅ Web server started on port {PORT}")
 
