@@ -620,14 +620,6 @@ function unlockVideo(){
     }catch(error){}
 
 
-    /*
-     * Browser autoplay policy-এর কারণে
-     * play() block হতে পারে।
-     *
-     * তাই error হলেও video unlocked
-     * থাকবে এবং user Play চাপতে পারবে।
-     */
-
     try{
 
         const playPromise =
@@ -691,11 +683,6 @@ function handleReturnFromAd(){
     }
 
 
-    /*
-     * Ad শুরু হওয়ার পর user যখন আবার
-     * Web App-এ ফিরে আসে তখন unlock হবে।
-     */
-
     clearAdFlag();
 
     unlockVideo();
@@ -747,25 +734,6 @@ openButton.addEventListener(
         let opened = null;
 
 
-        /*
-         * =================================================
-         * IMPORTANT FIX
-         * =================================================
-         *
-         * আগের code:
-         *
-         * window.location.href = "/ad";
-         *
-         * এতে Web App-এর বর্তমান page
-         * replace হয়ে যাচ্ছিল।
-         *
-         * এখন নতুন window/tab-এ Ad খোলা হচ্ছে।
-         *
-         * ফলে মূল Video Web App page
-         * খোলা থাকে।
-         */
-
-
         try{
 
             opened =
@@ -783,14 +751,6 @@ openButton.addEventListener(
 
         }
 
-
-        /*
-         * Telegram Web App থাকলে openLink()
-         * ব্যবহার করার চেষ্টা করা হবে।
-         *
-         * এটি মূল Web App-কে replace না করে
-         * external link খোলার জন্য ব্যবহার করা হয়।
-         */
 
         if(
             !opened &&
@@ -918,13 +878,6 @@ window.addEventListener(
 window.addEventListener(
     "pagehide",
     function(){
-
-        /*
-         * এখানে video unlock করা হবে না।
-         *
-         * শুধু page hide হওয়ার event
-         * browser-কে handle করতে দেওয়া হচ্ছে।
-         */
 
     }
 );
@@ -1132,11 +1085,6 @@ async def video_stream(request):
                 status=404
             )
 
-
-        # Telegram file_path যদি relative হয়,
-        # server-side bot token দিয়ে URL তৈরি হবে।
-        #
-        # এই URL browser-এর কাছে expose করা হবে না।
 
         if not (
             file_url.startswith("http://")
@@ -1386,13 +1334,6 @@ Back চাপুন এবং ভিডিওতে ফিরে যান।
             charset="utf-8"
         )
 
-
-    # Server-side redirect।
-    #
-    # Telegram message-এর মধ্যে SmartLink
-    # সরাসরি দেওয়া হচ্ছে না।
-    #
-    # Web App থেকে /ad নতুন window-তে খোলা হয়।
 
     raise web.HTTPFound(
         ADSTERRA_SMARTLINK
@@ -1731,34 +1672,12 @@ async def main():
 
 
     # =====================================================
-    # REMINDER SCHEDULER
-    # =====================================================
-
-    start_scheduler(
-        application.bot
-    )
-
-
-    await reload_reminders(
-        application.bot
-    )
-
-
-    # =====================================================
-    # WEB SERVER
-    # =====================================================
-
-    await start_web_server()
-
-
-    # =====================================================
-    # START TELEGRAM
+    # START TELEGRAM APPLICATION
     # =====================================================
 
     print(
-        "🚀 Telegram Bot is running asynchronously..."
+        "🚀 Initializing Telegram Bot..."
     )
-
 
     await application.initialize()
 
@@ -1769,6 +1688,41 @@ async def main():
     await application.updater.start_polling(
         drop_pending_updates=True
     )
+
+
+    print(
+        "✅ Telegram Bot is running."
+    )
+
+
+    # =====================================================
+    # REMINDER SCHEDULER
+    # =====================================================
+    #
+    # IMPORTANT:
+    # application.bot এখানে সরাসরি দেওয়া হবে না।
+    #
+    # Scheduler-কে পুরো application দেওয়া হচ্ছে।
+    #
+    # Telegram application initialize/start হওয়ার পরে
+    # scheduler চালু করা হচ্ছে।
+    #
+
+    start_scheduler(
+        application
+    )
+
+
+    await reload_reminders(
+        application
+    )
+
+
+    # =====================================================
+    # WEB SERVER
+    # =====================================================
+
+    await start_web_server()
 
 
     # =====================================================
