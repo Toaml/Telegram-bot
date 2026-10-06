@@ -14,10 +14,7 @@ from search_engine import search_media
 from reminder import reload_reminders
 from ad_system import attach_ad_to_keyboard
 
-# Conversation States
 UPLOAD_TITLE, UPLOAD_CATEGORY = range(2)
-CUSTOM_REMINDER_INPUT = 3
-SET_CITY = 4
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -32,26 +29,23 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = attach_ad_to_keyboard(InlineKeyboardMarkup(keyboard))
     welcome_text = (
         f"👋 আসসালামু আলাইকুম, {user.first_name}!\n\n"
-        f"আমি আপনার সার্বক্ষণিক অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট।\n"
-        f"আমার সাথে যেকোনো বিষয়ে চ্যাট করতে পারেন, নাটক/ভিডিও/গান খুঁজতে পারেন অথবা নামাজের সময় ও দৈনন্দিন কাজের রিমাইন্ডার সেট করতে পারেন।\n\n"
-        f"নিচের মেনু থেকে আপনার পছন্দ বেছে নিন: 👇"
+        f"আমি আপনার অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট।\n"
+        f"আপনি যেকোনো প্রশ্ন করতে পারেন, চ্যাট করতে পারেন কিংবা কোনো নাটক/ভিডিও/গান খুঁজতে পারেন।\n\n"
+        f"নিচের মেনু থেকেও আপনার প্রয়োজনীয় সুবিধা বেছে নিতে পারেন: 👇"
     )
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "📖 *বটের ব্যবহার নির্দেশিকা:*\n\n"
-        "• যেকোনো কথা লিখুন, বট ChatGPT-এর মতো দ্রুত উত্তর দেবে।\n"
-        "• যেকোনো নাটক বা গানের নাম লিখলে বট তা খুঁজে দেবে। (যেমন: `ব্যাচেলর পয়েন্ট দাও`)\n"
-        "• `/reminder` দিয়ে নতুন রিমাইন্ডার সেট করুন।\n"
-        "• `/weather [শহর]` দিয়ে আবহাওয়া জানুন।\n"
-        "• `/location [শহর]` দিয়ে নিজের জেলা/শহর সেট করুন।\n"
-        "• `/notifications` দিয়ে নোটিফিকেশন নিয়ন্ত্রণ করুন।"
+        "• আমাকে যেকোনো কথা বা প্রশ্ন লিখে পাঠান, আমি তৎক্ষণাৎ উত্তর দেব।\n"
+        "• কোনো নাটক বা ভিডিও পেতে স্পষ্ট করে বলুন (যেমন: `ব্যাচেলর পয়েন্ট নাটক দাও`)\n"
+        "• `/weather [শহর]` দিয়ে আবহাওয়া দেখুন।\n"
+        "• `/notifications` দিয়ে নোটিফিকেশন অন/অফ করুন।"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
-# --- মিডিয়া আপলোড কনভারসেশন (Admin Only) ---
-
+# --- মিডিয়া আপলোড (Admin Only) ---
 async def media_upload_init(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
@@ -89,7 +83,7 @@ async def media_title_received(update: Update, context: ContextTypes.DEFAULT_TYP
 
     keyboard = get_category_keyboard(page=0, callback_prefix="admin_cat")
     await update.message.reply_text(
-        f"✅ কন্টেন্টের নাম: *{title}*\n\n📂 এবার নিচে থেকে কন্টেন্টের ক্যাটাগরি নির্বাচন করুন:",
+        f"✅ কন্টেন্টের নাম: *{title}*\n\n📂 এবার নিচে থেকে ক্যাটাগরি নির্বাচন করুন:",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -139,8 +133,7 @@ async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text("❌ অপারেশন বাতিল করা হয়েছে।")
     return ConversationHandler.END
 
-# --- ন্যাচারাল ল্যাঙ্গুয়েজ মেসেজ প্রসেসর ---
-
+# --- প্রধান মেসেজ হ্যান্ডলার ---
 async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -149,7 +142,7 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_type = update.effective_chat.type
 
-    # গ্রুপ মেসেজ হলে শুধুমাত্র বটের মেনশন বা রিপ্লাই থাকলে উত্তর দেবে
+    # গ্রুপ মেসেজ হলে শুধুমাত্র মেনশন বা রিপ্লাই থাকলে কাজ করবে
     if chat_type in ["group", "supergroup"]:
         bot_user = await context.bot.get_me()
         bot_username = bot_user.username
@@ -157,24 +150,18 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         text = text.replace(f"@{bot_username}", "").strip()
 
-    # ১. দ্রুত রিপ্লাই চেক (Predefined & Funny Engine)
+    # ১. দ্রুত রিপ্লাই চেক (Smart Conversation Engine)
     smart_reply = check_smart_reply(text)
     if smart_reply:
         await update.message.reply_text(smart_reply)
         return
 
-    # ২. আবহাওয়া চেক
-    if any(w in text.lower() for w in ["weather", "আবহাওয়া", "বৃষ্টি", "গরম কেমন", "ঠান্ডা"]):
-        async with AsyncSessionLocal() as session:
-            user = (await session.execute(select(User).where(User.user_id == user_id))).scalars().first()
-            city = user.city if user else "Dhaka"
-        w_res = await get_weather(city)
-        await update.message.reply_text(w_res, parse_mode="Markdown")
-        return
+    # ২. স্পষ্ট কন্টেন্ট রিকোয়েস্ট (দাও / পাঠাও ইত্যাদি থাকলে তবেই ডাটাবেসে খুঁজবে)
+    t_lower = text.lower()
+    explicit_content_intent = any(w in t_lower for w in ["dao", "দাও", "pathao", "পাঠাও", "chahi", "চাই", "khujchi", "খুঁজছি"])
+    content_words = any(w in t_lower for w in ["video", "ভিডিও", "natok", "নাটক", "gan", "গান", "movie", "মুভি", "film"])
 
-    # ৩. কন্টেন্ট খোঁজার চেষ্টা (মিডিয়া সার্চ ইঞ্জিন)
-    search_triggers = ["dao", "দাও", "pathao", "পাঠাও", "video", "ভিডিও", "natok", "নাটক", "gan", "গান", "movie", "মুভি"]
-    if any(t in text.lower() for t in search_triggers):
+    if explicit_content_intent and content_words:
         wait_msg = await update.message.reply_text("অবশ্যই 😎\nএকটু অপেক্ষা করুন, দিচ্ছি..... ⏳")
         content_item = await search_media(text)
 
@@ -191,25 +178,17 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     await context.bot.send_document(chat_id=user_id, document=content_item.file_id, caption=caption, reply_markup=keyboard, parse_mode="Markdown")
                 
-                # ভিউ কাউন্ট বৃদ্ধি
-                async with AsyncSessionLocal() as session:
-                    content_item.views += 1
-                    session.add(content_item)
-                    await session.commit()
-
                 await wait_msg.delete()
                 return
             except Exception:
                 pass
 
-        # কনটেন্ট না পাওয়া গেলে
         await wait_msg.delete()
         async with AsyncSessionLocal() as session:
             req = ContentRequest(user_id=user_id, username=update.effective_user.username, query=text)
             session.add(req)
             await session.commit()
 
-        # এডমিনকে সতর্কতা নোটিফিকেশন পাঠানো
         for admin_id in ADMIN_IDS:
             try:
                 await context.bot.send_message(
@@ -232,29 +211,21 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ৪. ন্যাচারাল ল্যাঙ্গুয়েজ রিমাইন্ডার ডিটেকশন (যেমন: প্রতিদিন সন্ধ্যা ৭টায় পড়ার কথা মনে করিয়ে দিও)
+    # ৩. ন্যাচারাল রিমাইন্ডার সেট করা
     time_match = re.search(r"(\d{1,2})[^\d]*([০-৯]{0,2})?\s*(টায়|টা|am|pm|ঘন্টায়)", text, re.IGNORECASE)
     if ("মনে করিয়ে" in text or "রিমাইন্ডার" in text or "remind" in text.lower()) and time_match:
         hour = int(time_match.group(1))
-        if "সন্ধ্যা" in text or "রাত" in text or "বিকাল" in text or "দুপুর" in text:
-            if hour < 12:
-                hour += 12
+        if any(w in text for w in ["সন্ধ্যা", "রাত", "বিকাল", "দুপুর"]) and hour < 12:
+            hour += 12
         elif "সকাল" in text and hour == 12:
             hour = 0
             
         rem_type = "custom"
-        if "পড়া" in text or "study" in text.lower():
-            rem_type = "study"
-        elif "খেলা" in text or "play" in text.lower():
-            rem_type = "play"
-        elif "কাজ" in text or "work" in text.lower():
-            rem_type = "work"
-        elif "ঘুমা" in text or "sleep" in text.lower():
-            rem_type = "sleep"
-        elif "ওঠার" in text or "wake" in text.lower():
-            rem_type = "wake"
-        elif "খাবার" in text or "food" in text.lower():
-            rem_type = "food"
+        if any(w in text.lower() for w in ["পড়া", "study"]): rem_type = "study"
+        elif any(w in text.lower() for w in ["খেলা", "play"]): rem_type = "play"
+        elif any(w in text.lower() for w in ["কাজ", "work"]): rem_type = "work"
+        elif any(w in text.lower() for w in ["ঘুমা", "sleep"]): rem_type = "sleep"
+        elif any(w in text.lower() for w in ["খাবার", "food"]): rem_type = "food"
 
         schedule_str = f"{hour:02d}:00"
         async with AsyncSessionLocal() as session:
@@ -263,16 +234,15 @@ async def handle_user_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await session.commit()
         
         await reload_reminders(context.bot)
-        await update.message.reply_text(f"✅ ঠিক আছে! প্রতিদিন {schedule_str} এ আপনাকে মনে করিয়ে দেওয়া হবে। ⏰")
+        await update.message.reply_text(f"✅ ঠিক আছে! প্রতিদিন {schedule_str}-এ আপনাকে মনে করিয়ে দেওয়া হবে। ⏰")
         return
 
-    # ৫. এআই চ্যাট ইঞ্জিন (ChatGPT Fallback)
+    # ৪. বাকি সমস্ত ক্ষেত্রে AI চ্যাট (ChatGPT-এর মতো উত্তর)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     ai_reply = await get_ai_response(text)
     await update.message.reply_text(ai_reply)
 
-# --- নোটিফিকেশন ও সেটিংস হ্যান্ডলার ---
-
+# --- নোটিফিকেশন সেটিংস ---
 async def notifications_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     async with AsyncSessionLocal() as session:
@@ -305,5 +275,4 @@ async def toggle_notification_callback(update: Update, context: ContextTypes.DEF
     field = field_map.get(query.data)
     if field:
         await toggle_user_setting(query.from_user.id, field)
-        # মেনু রিফ্রেশ
         await notifications_menu(update, context)
