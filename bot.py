@@ -1,10 +1,8 @@
 import asyncio
-import mimetypes
-from urllib.parse import urlparse
+import html
 
-from aiohttp import web, ClientSession
+from aiohttp import web, ClientSession, ClientTimeout
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -13,7 +11,13 @@ from telegram.ext import (
     filters
 )
 
-from config import BOT_TOKEN, PORT, ADSTERRA_SMARTLINK, AD_ENABLED
+from config import (
+    BOT_TOKEN,
+    PORT,
+    ADSTERRA_SMARTLINK,
+    AD_ENABLED,
+    WEBAPP_BASE_URL
+)
 
 from database import (
     init_db,
@@ -50,10 +54,10 @@ from admin_handlers import (
 
 
 # =========================================================
-# RENDER WEB SERVER
+# GLOBAL TELEGRAM APPLICATION
 # =========================================================
 
-WEBAPP_BASE_URL = "https://telegram-bot-7hr2.onrender.com"
+application_global = None
 
 
 # =========================================================
@@ -63,11 +67,18 @@ WEBAPP_BASE_URL = "https://telegram-bot-7hr2.onrender.com"
 WEBAPP_HTML = r"""
 <!DOCTYPE html>
 <html lang="bn">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0,
-      maximum-scale=1.0,user-scalable=no">
+
+<meta
+    name="viewport"
+    content="width=device-width,
+    initial-scale=1.0,
+    maximum-scale=1.0,
+    user-scalable=no"
+>
 
 <title>Video Library</title>
 
@@ -99,7 +110,6 @@ body{
     width:100%;
     max-width:900px;
     padding:15px;
-    text-align:center;
 }
 
 .card{
@@ -107,13 +117,14 @@ body{
     background:#111;
     border-radius:18px;
     padding:15px;
-    box-shadow:0 0 30px rgba(0,0,0,.6);
+    box-shadow:0 0 30px rgba(0,0,0,.65);
 }
 
 .title{
     font-size:20px;
     font-weight:bold;
     margin-bottom:12px;
+    text-align:center;
     word-break:break-word;
 }
 
@@ -128,7 +139,7 @@ body{
 video{
     display:block;
     width:100%;
-    max-height:70vh;
+    max-height:72vh;
     background:#000;
 }
 
@@ -138,24 +149,8 @@ video{
     display:flex;
     align-items:center;
     justify-content:center;
-    background:rgba(0,0,0,.72);
-    z-index:5;
-}
-
-.open-button{
-    border:0;
-    background:#fff;
-    color:#111;
-    font-size:22px;
-    font-weight:bold;
-    padding:16px 35px;
-    border-radius:50px;
-    cursor:pointer;
-    box-shadow:0 5px 30px rgba(255,255,255,.25);
-}
-
-.open-button:active{
-    transform:scale(.96);
+    background:rgba(0,0,0,.78);
+    z-index:10;
 }
 
 .lock-text{
@@ -163,12 +158,33 @@ video{
     top:20px;
     left:0;
     right:0;
-    font-size:14px;
-    opacity:.9;
+    text-align:center;
+    font-size:15px;
+    color:#fff;
+    font-weight:bold;
+}
+
+.open-button{
+    border:0;
+    outline:none;
+    background:#fff;
+    color:#111;
+    font-size:22px;
+    font-weight:bold;
+    padding:16px 38px;
+    border-radius:50px;
+    cursor:pointer;
+    box-shadow:0 5px 35px rgba(255,255,255,.28);
+    -webkit-tap-highlight-color:transparent;
+}
+
+.open-button:active{
+    transform:scale(.95);
 }
 
 .status{
-    margin-top:12px;
+    margin-top:13px;
+    text-align:center;
     font-size:14px;
     color:#aaa;
 }
@@ -177,11 +193,51 @@ video{
     color:#ff6b6b;
 }
 
+.success{
+    color:#72ff9b;
+}
+
 .hidden{
     display:none !important;
 }
 
+.loading{
+    position:absolute;
+    inset:0;
+    z-index:20;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.82);
+}
+
+.loading.show{
+    display:flex;
+}
+
+.loading-box{
+    text-align:center;
+    font-size:15px;
+}
+
+.spinner{
+    width:40px;
+    height:40px;
+    margin:0 auto 12px;
+    border:4px solid #555;
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+}
+
+@keyframes spin{
+    to{
+        transform:rotate(360deg);
+    }
+}
+
 </style>
+
 </head>
 
 <body>
@@ -190,7 +246,10 @@ video{
 
     <div class="card">
 
-        <div id="title" class="title">
+        <div
+            id="title"
+            class="title"
+        >
             🎬 Video
         </div>
 
@@ -200,10 +259,15 @@ video{
                 id="player"
                 controls
                 playsinline
-                preload="metadata">
-            </video>
+                preload="metadata"
+                controlsList="nodownload"
+            ></video>
 
-            <div id="lockLayer" class="lock-layer">
+
+            <div
+                id="lockLayer"
+                class="lock-layer"
+            >
 
                 <div class="lock-text">
                     🔒 Video Locked
@@ -211,15 +275,39 @@ video{
 
                 <button
                     id="openButton"
-                    class="open-button">
+                    class="open-button"
+                    type="button"
+                >
                     🔓 OPEN
                 </button>
 
             </div>
 
+
+            <div
+                id="loading"
+                class="loading"
+            >
+
+                <div class="loading-box">
+
+                    <div class="spinner"></div>
+
+                    <div>
+                        বিজ্ঞাপন খোলা হচ্ছে...
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
-        <div id="status" class="status">
+
+        <div
+            id="status"
+            class="status"
+        >
             🔒 ভিডিও দেখতে OPEN চাপুন
         </div>
 
@@ -230,12 +318,27 @@ video{
 
 <script>
 
-const params = new URLSearchParams(
-    window.location.search
-);
+(function(){
+
+"use strict";
+
+
+// ======================================================
+// URL
+// ======================================================
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
 
 const contentId =
     params.get("content_id");
+
+
+// ======================================================
+// ELEMENTS
+// ======================================================
 
 const titleElement =
     document.getElementById("title");
@@ -252,6 +355,20 @@ const openButton =
 const statusElement =
     document.getElementById("status");
 
+const loadingElement =
+    document.getElementById("loading");
+
+
+// ======================================================
+// STATE
+// ======================================================
+
+let adStarted = false;
+
+let videoLoaded = false;
+
+let videoUnlocked = false;
+
 
 // ======================================================
 // TELEGRAM WEB APP
@@ -267,9 +384,96 @@ try{
         window.Telegram.WebApp.ready();
 
         window.Telegram.WebApp.expand();
+
     }
 
-}catch(e){}
+}catch(error){
+
+    console.log(
+        "Telegram WebApp error:",
+        error
+    );
+
+}
+
+
+// ======================================================
+// STORAGE KEY
+// ======================================================
+
+function getStorageKey(){
+
+    return (
+        "video_ad_started_" +
+        String(contentId || "")
+    );
+
+}
+
+
+// ======================================================
+// MARK AD STARTED
+// ======================================================
+
+function markAdStarted(){
+
+    try{
+
+        sessionStorage.setItem(
+            getStorageKey(),
+            "1"
+        );
+
+    }catch(error){
+
+        console.log(
+            "Session storage error:",
+            error
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// CHECK AD STARTED
+// ======================================================
+
+function wasAdStarted(){
+
+    try{
+
+        return (
+            sessionStorage.getItem(
+                getStorageKey()
+            ) === "1"
+        );
+
+    }catch(error){
+
+        return false;
+
+    }
+
+}
+
+
+// ======================================================
+// CLEAR AD FLAG
+// ======================================================
+
+function clearAdFlag(){
+
+    try{
+
+        sessionStorage.removeItem(
+            getStorageKey()
+        );
+
+    }catch(error){}
+
+}
 
 
 // ======================================================
@@ -288,25 +492,37 @@ async function loadVideo(){
         );
 
         return;
+
     }
+
 
     try{
 
         const response =
             await fetch(
                 "/api/content/" +
-                encodeURIComponent(contentId)
+                encodeURIComponent(
+                    contentId
+                ),
+                {
+                    method:"GET",
+                    cache:"no-store"
+                }
             );
+
 
         if(!response.ok){
 
             throw new Error(
                 "Content not found"
             );
+
         }
+
 
         const data =
             await response.json();
+
 
         if(data.title){
 
@@ -315,21 +531,52 @@ async function loadVideo(){
 
             document.title =
                 data.title;
+
         }
 
-        if(data.media_type !== "video"){
+
+        if(
+            data.media_type !==
+            "video"
+        ){
 
             statusElement.textContent =
                 "⚠️ এটি ভিডিও content নয়।";
 
+            statusElement.classList.add(
+                "error"
+            );
+
             return;
+
         }
+
 
         player.src =
             "/video/" +
-            encodeURIComponent(contentId);
+            encodeURIComponent(
+                contentId
+            );
 
         player.load();
+
+        videoLoaded = true;
+
+
+        player.addEventListener(
+            "error",
+            function(){
+
+                statusElement.textContent =
+                    "❌ ভিডিও লোড করা যায়নি।";
+
+                statusElement.classList.add(
+                    "error"
+                );
+
+            }
+        );
+
 
     }catch(error){
 
@@ -341,32 +588,147 @@ async function loadVideo(){
         statusElement.classList.add(
             "error"
         );
+
     }
+
 }
 
 
 // ======================================================
-// UNLOCK
+// UNLOCK VIDEO
 // ======================================================
 
 function unlockVideo(){
+
+    if(videoUnlocked){
+
+        return;
+
+    }
+
+
+    videoUnlocked = true;
+
 
     lockLayer.classList.add(
         "hidden"
     );
 
+
+    loadingElement.classList.remove(
+        "show"
+    );
+
+
     statusElement.textContent =
-        "✅ Video Unlocked — এখন Play করুন";
+        "✅ Video Unlocked";
+
+    statusElement.classList.remove(
+        "error"
+    );
+
+    statusElement.classList.add(
+        "success"
+    );
+
 
     try{
 
         player.controls = true;
 
-        player.play().catch(
-            function(){}
-        );
+    }catch(error){}
 
-    }catch(e){}
+
+    /*
+     * Mobile browser autoplay policy অনুযায়ী
+     * play() block হতে পারে।
+     *
+     * সেক্ষেত্রে controls থাকবে এবং user
+     * Play চাপতে পারবে।
+     */
+
+    try{
+
+        const playPromise =
+            player.play();
+
+        if(
+            playPromise &&
+            typeof playPromise.catch ===
+            "function"
+        ){
+
+            playPromise.catch(
+                function(){
+
+                    statusElement.textContent =
+                        "✅ Video Unlocked — Play চাপুন";
+
+                }
+            );
+
+        }
+
+    }catch(error){
+
+        statusElement.textContent =
+            "✅ Video Unlocked — Play চাপুন";
+
+    }
+
+}
+
+
+// ======================================================
+// RETURN FROM AD
+// ======================================================
+
+function handleReturnFromAd(){
+
+    if(!contentId){
+
+        return;
+
+    }
+
+
+    if(!adStarted){
+
+        /*
+         * Web App নতুন করে load হলে
+         * session flag থেকেও বুঝতে চেষ্টা করি।
+         */
+
+        if(!wasAdStarted()){
+
+            return;
+
+        }
+
+    }
+
+
+    if(!wasAdStarted()){
+
+        return;
+
+    }
+
+
+    /*
+     * এখানে মূল FIX:
+     *
+     * Ad একই Web App-এর জায়গা নেয় না।
+     * Ad নতুন tab/window-এ খোলা হয়েছে।
+     *
+     * User আবার এই Web App-এ ফিরে এলে
+     * focus/visibility/pageshow থেকে
+     * video unlock হবে।
+     */
+
+    clearAdFlag();
+
+    unlockVideo();
 
 }
 
@@ -382,78 +744,182 @@ openButton.addEventListener(
         if(!contentId){
 
             return;
+
         }
 
-        /*
-         * একই Web App origin-এর sessionStorage-এ
-         * flag রাখা হচ্ছে।
-         *
-         * Adsterra page থেকে Back করলে এই Web App
-         * আবার ফিরে এলে pageshow event-এর মাধ্যমে
-         * video unlock হবে।
-         */
 
-        try{
+        adStarted = true;
 
-            sessionStorage.setItem(
-                "video_ad_started_" + contentId,
-                "1"
-            );
-
-        }catch(e){}
+        markAdStarted();
 
 
         statusElement.textContent =
             "⏳ বিজ্ঞাপন খোলা হচ্ছে...";
 
 
+        loadingElement.classList.add(
+            "show"
+        );
+
+
         /*
-         * সরাসরি Adsterra SmartLink user-এর
-         * Telegram button-এ দেখানো হচ্ছে না।
+         * =================================================
+         * IMPORTANT FIX
+         * =================================================
          *
-         * Render-এর /ad endpoint SmartLink-এ
-         * redirect করবে।
+         * আগের code ছিল:
+         *
+         * window.location.href = "/ad";
+         *
+         * এতে বর্তমান Web App page replace হয়ে
+         * যেত।
+         *
+         * এখন নতুন tab/window ব্যবহার করা হচ্ছে।
+         * ফলে মূল Web App page খোলা থাকবে।
          */
 
-        window.location.href =
+
+        const adUrl =
             "/ad?content_id=" +
-            encodeURIComponent(contentId);
+            encodeURIComponent(
+                contentId
+            );
+
+
+        let opened = null;
+
+
+        try{
+
+            opened =
+                window.open(
+                    adUrl,
+                    "_blank",
+                    "noopener,noreferrer"
+                );
+
+        }catch(error){
+
+            console.log(
+                "window.open error:",
+                error
+            );
+
+        }
+
+
+        /*
+         * Telegram WebView-এ window.open
+         * কখনো null return করতে পারে,
+         * যদিও নতুন page খুলে গেছে।
+         *
+         * তাই একই page-এ location.href
+         * fallback করা হচ্ছে না।
+         *
+         * কারণ সেটাই Mobile Back সমস্যার
+         * মূল কারণ ছিল।
+         */
+
+
+        if(!opened){
+
+            loadingElement.classList.remove(
+                "show"
+            );
+
+            statusElement.textContent =
+                "⚠️ বিজ্ঞাপনটি নতুন পেজে খুলুন। "
+                + "Browser popup বন্ধ থাকলে "
+                + "অনুমতি দিন।";
+
+        }
+
     }
 );
 
 
 // ======================================================
-// RETURN FROM AD
+// FOCUS
+// ======================================================
+
+window.addEventListener(
+    "focus",
+    function(){
+
+        setTimeout(
+            handleReturnFromAd,
+            300
+        );
+
+    }
+);
+
+
+// ======================================================
+// VISIBILITY
+// ======================================================
+
+document.addEventListener(
+    "visibilitychange",
+    function(){
+
+        if(
+            document.visibilityState ===
+            "visible"
+        ){
+
+            setTimeout(
+                handleReturnFromAd,
+                300
+            );
+
+        }
+
+    }
+);
+
+
+// ======================================================
+// PAGE SHOW
 // ======================================================
 
 window.addEventListener(
     "pageshow",
     function(){
 
-        if(!contentId){
+        setTimeout(
+            handleReturnFromAd,
+            300
+        );
 
-            return;
+    }
+);
+
+
+// ======================================================
+// WINDOW MESSAGE
+// ======================================================
+
+window.addEventListener(
+    "message",
+    function(event){
+
+        /*
+         * Future compatibility.
+         * Ad page থেকে message এলে unlock করা যাবে।
+         */
+
+        if(
+            event.data ===
+            "AD_COMPLETED"
+        ){
+
+            clearAdFlag();
+
+            unlockVideo();
+
         }
 
-        try{
-
-            const flag =
-                sessionStorage.getItem(
-                    "video_ad_started_" +
-                    contentId
-                );
-
-            if(flag === "1"){
-
-                sessionStorage.removeItem(
-                    "video_ad_started_" +
-                    contentId
-                );
-
-                unlockVideo();
-            }
-
-        }catch(e){}
     }
 );
 
@@ -464,9 +930,45 @@ window.addEventListener(
 
 loadVideo();
 
+
+// ======================================================
+// EXISTING AD FLAG
+// ======================================================
+
+/*
+ * যদি browser/WebView Web App page-কে
+ * restore করে, session flag থাকলে
+ * return detect হবে।
+ */
+
+setTimeout(
+    function(){
+
+        if(
+            wasAdStarted() &&
+            document.visibilityState ===
+            "visible"
+        ){
+
+            /*
+             * শুধু page reload হয়েছে এমন অবস্থায়
+             * সঙ্গে সঙ্গে unlock না করে focus/page
+             * event-এর ওপর নির্ভর করি।
+             */
+
+        }
+
+    },
+    500
+);
+
+
+})();
+
 </script>
 
 </body>
+
 </html>
 """
 
@@ -478,7 +980,10 @@ loadVideo();
 async def health_check(request):
 
     return web.Response(
-        text="Telegram Bot + Video Server is running!",
+        text=(
+            "Telegram Bot + Video Web App "
+            "is running!"
+        ),
         status=200
     )
 
@@ -495,16 +1000,20 @@ async def content_api(request):
 
     try:
 
-        cid = int(content_id)
+        cid = int(
+            content_id
+        )
 
     except Exception:
 
         return web.json_response(
             {
-                "error": "Invalid content ID"
+                "error":
+                    "Invalid content ID"
             },
             status=400
         )
+
 
     async with AsyncSessionLocal() as session:
 
@@ -518,21 +1027,31 @@ async def content_api(request):
             result.scalars().first()
         )
 
+
     if not content:
 
         return web.json_response(
             {
-                "error": "Content not found"
+                "error":
+                    "Content not found"
             },
             status=404
         )
 
+
     return web.json_response(
         {
-            "content_id": content.content_id,
-            "title": content.title,
-            "category": content.category,
-            "media_type": content.media_type
+            "content_id":
+                content.content_id,
+
+            "title":
+                content.title,
+
+            "category":
+                content.category,
+
+            "media_type":
+                content.media_type
         }
     )
 
@@ -549,7 +1068,9 @@ async def video_stream(request):
 
     try:
 
-        cid = int(content_id)
+        cid = int(
+            content_id
+        )
 
     except Exception:
 
@@ -557,6 +1078,7 @@ async def video_stream(request):
             text="Invalid content ID",
             status=400
         )
+
 
     async with AsyncSessionLocal() as session:
 
@@ -570,12 +1092,14 @@ async def video_stream(request):
             result.scalars().first()
         )
 
+
     if not content:
 
         return web.Response(
             text="Video not found",
             status=404
         )
+
 
     if content.media_type != "video":
 
@@ -584,6 +1108,7 @@ async def video_stream(request):
             status=400
         )
 
+
     if not content.file_id:
 
         return web.Response(
@@ -591,13 +1116,34 @@ async def video_stream(request):
             status=404
         )
 
-    try:
 
-        telegram_file = await application_global.bot.get_file(
-            content.file_id
+    if not BOT_TOKEN:
+
+        return web.Response(
+            text="BOT_TOKEN missing",
+            status=500
         )
 
-        file_url = telegram_file.file_path
+
+    try:
+
+        if application_global is None:
+
+            return web.Response(
+                text="Telegram application not ready",
+                status=503
+            )
+
+
+        telegram_file =
+            await application_global.bot.get_file(
+                content.file_id
+            )
+
+
+        file_url =
+            telegram_file.file_path
+
 
         if not file_url:
 
@@ -606,7 +1152,19 @@ async def video_stream(request):
                 status=404
             )
 
-        if not file_url.startswith("http"):
+
+        /*
+         * Telegram file_path যদি relative হয়,
+         * server-side bot token দিয়ে URL তৈরি হবে।
+         *
+         * এই URL browser-এর কাছে expose করা হবে না।
+         */
+
+        if not file_url.startswith(
+            "http://"
+        ) and not file_url.startswith(
+            "https://"
+        ):
 
             file_url = (
                 "https://api.telegram.org/file/bot"
@@ -615,115 +1173,149 @@ async def video_stream(request):
                 + file_url
             )
 
+
         request_headers = {}
 
-        range_header = request.headers.get(
-            "Range"
-        )
+
+        range_header =
+            request.headers.get(
+                "Range"
+            )
+
 
         if range_header:
 
-            request_headers["Range"] = range_header
+            request_headers[
+                "Range"
+            ] = range_header
 
 
-        session = ClientSession()
+        timeout = ClientTimeout(
+            total=None,
+            connect=30,
+            sock_read=None
+        )
 
-        try:
 
-            upstream = await session.get(
+        async with ClientSession(
+            timeout=timeout
+        ) as session:
+
+            async with session.get(
                 file_url,
                 headers=request_headers
-            )
+            ) as upstream:
 
-        except Exception:
-
-            await session.close()
-
-            raise
+                response_headers = {}
 
 
-        response_headers = {}
+                content_type =
+                    upstream.headers.get(
+                        "Content-Type",
+                        "video/mp4"
+                    )
 
-        content_type = upstream.headers.get(
-            "Content-Type",
-            "video/mp4"
-        )
 
-        response_headers["Content-Type"] = (
-            content_type
-        )
+                response_headers[
+                    "Content-Type"
+                ] = content_type
 
-        if upstream.headers.get(
-            "Content-Length"
-        ):
 
-            response_headers[
-                "Content-Length"
-            ] = upstream.headers[
-                "Content-Length"
-            ]
+                if upstream.headers.get(
+                    "Content-Length"
+                ):
 
-        if upstream.headers.get(
-            "Content-Range"
-        ):
+                    response_headers[
+                        "Content-Length"
+                    ] = upstream.headers[
+                        "Content-Length"
+                    ]
 
-            response_headers[
-                "Content-Range"
-            ] = upstream.headers[
-                "Content-Range"
-            ]
 
-        response_headers[
-            "Accept-Ranges"
-        ] = "bytes"
+                if upstream.headers.get(
+                    "Content-Range"
+                ):
 
-        response = web.StreamResponse(
-            status=upstream.status,
-            headers=response_headers
-        )
+                    response_headers[
+                        "Content-Range"
+                    ] = upstream.headers[
+                        "Content-Range"
+                    ]
 
-        await response.prepare(
-            request
-        )
 
-        try:
+                response_headers[
+                    "Accept-Ranges"
+                ] = "bytes"
 
-            async for chunk in upstream.content.iter_chunked(
-                1024 * 64
-            ):
 
-                await response.write(
-                    chunk
+                if upstream.headers.get(
+                    "Last-Modified"
+                ):
+
+                    response_headers[
+                        "Last-Modified"
+                    ] = upstream.headers[
+                        "Last-Modified"
+                    ]
+
+
+                response = web.StreamResponse(
+                    status=upstream.status,
+                    headers=response_headers
                 )
 
-        except (
-            asyncio.CancelledError,
-            ConnectionResetError,
-            BrokenPipeError
-        ):
 
-            pass
+                await response.prepare(
+                    request
+                )
 
-        finally:
 
-            upstream.close()
+                try:
 
-            await session.close()
+                    async for chunk in (
+                        upstream.content.iter_chunked(
+                            64 * 1024
+                        )
+                    ):
 
-        try:
+                        await response.write(
+                            chunk
+                        )
 
-            await response.write_eof()
 
-        except Exception:
+                except (
+                    asyncio.CancelledError,
+                    ConnectionResetError,
+                    BrokenPipeError
+                ):
 
-            pass
+                    pass
 
-        return response
+
+                try:
+
+                    await response.write_eof()
+
+                except Exception:
+
+                    pass
+
+
+                return response
+
+
+    except (
+        asyncio.CancelledError
+    ):
+
+        raise
+
 
     except Exception as e:
 
         print(
-            f"❌ Video stream error: {e}"
+            "❌ Video stream error:",
+            repr(e)
         )
 
         return web.Response(
@@ -738,40 +1330,87 @@ async def video_stream(request):
 
 async def ad_redirect(request):
 
-    content_id = request.query.get(
-        "content_id",
-        ""
-    )
-
     if not AD_ENABLED:
 
         return web.Response(
             text="""
-            <html>
-            <body style="background:#111;color:white;text-align:center;padding:50px;font-family:Arial">
-            <h2>Ad is disabled</h2>
-            <p>Back চাপুন।</p>
-            </body>
-            </html>
-            """,
-            content_type="text/html"
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>Advertisement</title>
+</head>
+
+<body style="
+background:#111;
+color:#fff;
+font-family:Arial;
+text-align:center;
+padding:60px 20px;
+">
+
+<h2>Advertisement Disabled</h2>
+
+<p>
+Back চাপুন এবং ভিডিওতে ফিরে যান।
+</p>
+
+</body>
+</html>
+""",
+            content_type="text/html",
+            charset="utf-8"
         )
+
 
     if not ADSTERRA_SMARTLINK:
 
         return web.Response(
             text="""
-            <html>
-            <body style="background:#111;color:white;text-align:center;padding:50px;font-family:Arial">
-            <h2>Advertisement unavailable</h2>
-            <p>Back চাপুন।</p>
-            </body>
-            </html>
-            """,
-            content_type="text/html"
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>Advertisement</title>
+</head>
+
+<body style="
+background:#111;
+color:#fff;
+font-family:Arial;
+text-align:center;
+padding:60px 20px;
+">
+
+<h2>Advertisement Unavailable</h2>
+
+<p>
+Back চাপুন এবং ভিডিওতে ফিরে যান।
+</p>
+
+</body>
+</html>
+""",
+            content_type="text/html",
+            charset="utf-8"
         )
 
-    return web.HTTPFound(
+
+    /*
+     * IMPORTANT:
+     *
+     * এই redirect server-side response।
+     *
+     * Telegram message-এ SmartLink দেওয়া হচ্ছে না।
+     *
+     * Web App থেকে /ad নতুন tab-এ open হচ্ছে।
+     */
+
+    raise web.HTTPFound(
         ADSTERRA_SMARTLINK
     )
 
@@ -785,7 +1424,15 @@ async def webapp_page(request):
     return web.Response(
         text=WEBAPP_HTML,
         content_type="text/html",
-        charset="utf-8"
+        charset="utf-8",
+        headers={
+            "Cache-Control":
+                "no-store, no-cache, must-revalidate",
+            "Pragma":
+                "no-cache",
+            "Expires":
+                "0"
+        }
     )
 
 
@@ -797,41 +1444,50 @@ async def start_web_server():
 
     app = web.Application()
 
+
     app.router.add_get(
         "/",
         health_check
     )
+
 
     app.router.add_get(
         "/health",
         health_check
     )
 
+
     app.router.add_get(
         "/app",
         webapp_page
     )
+
 
     app.router.add_get(
         "/api/content/{content_id}",
         content_api
     )
 
+
     app.router.add_get(
         "/video/{content_id}",
         video_stream
     )
+
 
     app.router.add_get(
         "/ad",
         ad_redirect
     )
 
+
     runner = web.AppRunner(
         app
     )
 
+
     await runner.setup()
+
 
     site = web.TCPSite(
         runner,
@@ -839,18 +1495,19 @@ async def start_web_server():
         PORT
     )
 
+
     await site.start()
 
+
     print(
-        f"🌐 Web server running on port {PORT}"
+        "🌐 Web server running on "
+        f"0.0.0.0:{PORT}"
     )
 
-
-# =========================================================
-# GLOBAL APPLICATION REFERENCE
-# =========================================================
-
-application_global = None
+    print(
+        "🔗 Web App:",
+        WEBAPP_BASE_URL + "/app"
+    )
 
 
 # =========================================================
@@ -861,9 +1518,10 @@ async def main():
 
     global application_global
 
-    # -----------------------------------------------------
-    # BOT TOKEN
-    # -----------------------------------------------------
+
+    # =====================================================
+    # TOKEN
+    # =====================================================
 
     if not BOT_TOKEN:
 
@@ -872,22 +1530,23 @@ async def main():
         )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # DATABASE
-    # -----------------------------------------------------
+    # =====================================================
 
     await init_db()
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # TELEGRAM APPLICATION
-    # -----------------------------------------------------
+    # =====================================================
 
     application = (
         ApplicationBuilder()
         .token(BOT_TOKEN)
         .build()
     )
+
 
     application_global = application
 
@@ -903,12 +1562,14 @@ async def main():
         )
     )
 
+
     application.add_handler(
         CommandHandler(
             "help",
             help_handler
         )
     )
+
 
     application.add_handler(
         CommandHandler(
@@ -917,12 +1578,14 @@ async def main():
         )
     )
 
+
     application.add_handler(
         CommandHandler(
             "stats",
             admin_stats
         )
     )
+
 
     application.add_handler(
         CommandHandler(
@@ -931,12 +1594,14 @@ async def main():
         )
     )
 
+
     application.add_handler(
         CommandHandler(
             "cancel",
             cancel_command
         )
     )
+
 
     application.add_handler(
         CommandHandler(
@@ -947,7 +1612,7 @@ async def main():
 
 
     # =====================================================
-    # ADMIN MEDIA UPLOAD
+    # ADMIN MEDIA
     # =====================================================
 
     application.add_handler(
@@ -1010,7 +1675,7 @@ async def main():
 
 
     # =====================================================
-    # NOTIFICATIONS
+    # NOTIFICATION
     # =====================================================
 
     application.add_handler(
@@ -1034,7 +1699,7 @@ async def main():
 
 
     # =====================================================
-    # ADMIN REQUESTS CALLBACK
+    # ADMIN REQUESTS
     # =====================================================
 
     application.add_handler(
@@ -1058,12 +1723,13 @@ async def main():
 
 
     # =====================================================
-    # REMINDER
+    # REMINDERS
     # =====================================================
 
     start_scheduler(
         application.bot
     )
+
 
     await reload_reminders(
         application.bot
@@ -1078,16 +1744,19 @@ async def main():
 
 
     # =====================================================
-    # START BOT
+    # TELEGRAM START
     # =====================================================
 
     print(
         "🚀 Telegram Bot is running asynchronously..."
     )
 
+
     await application.initialize()
 
+
     await application.start()
+
 
     await application.updater.start_polling(
         drop_pending_updates=True
@@ -1095,7 +1764,7 @@ async def main():
 
 
     # =====================================================
-    # KEEP RUNNING
+    # KEEP ALIVE
     # =====================================================
 
     await asyncio.Event().wait()
