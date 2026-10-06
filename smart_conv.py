@@ -1,43 +1,50 @@
-import re
+import unicodedata
 import random
 from config import ADMIN_USERNAME
 
-PATTERNS = [
-    # ১. নাম ও পরিচয় (API ছাড়াই তৎক্ষণাৎ রিপ্লাই)
-    (r"\b(tomar nam|তোমার নাম|তোমার নাম কি|নাম কি|who are you|তুমি কে|তোমার পরিচয়)\b", [
-        f"আমি আপনার অল-ইন-ওয়ান এআই অ্যাসিস্ট্যান্ট! 😎\nআমার কোনো আলাদা নাম নেই, আমি আমার বস TOMAL CHOWDHURY (@{ADMIN_USERNAME})-এর তৈরি বট! 👑",
-        "আমি একটি স্মার্ট এআই রোবট! আপনার যেকোনো প্রশ্নের উত্তর দিতে এবং সাহায্য করতে আমি ২৪/৭ প্রস্তুত। 🤖✨"
-    ]),
-    # ২. সালাম ও শুভেচ্ছা
-    (r"\b(hi|hello|hey|হাই|হ্যালো|সালাম|আসসালামু আলাইকুম|assalamu alaikum|kemon acho|কেমন আছো|কেমন আছেন)\b", [
-        "ওয়ালাইকুম আসসালাম! কেমন আছেন? আমি কীভাবে সাহায্য করতে পারি? 😊",
-        "হ্যালো! আশা করি আপনার দিনটি দারুণ কাটছে! বলুন কী সাহায্য লাগবে? 🌸",
-        "আমি আলহামদুলিল্লাহ্‌ অনেক ভালো আছি! আপনি কেমন আছেন? ✨",
-        "হে! আপনার জন্য আমি সদা প্রস্তুত। কী জানতে চান বলুন! 🚀"
-    ]),
-    # ৩. বস এবং মালিকানা সম্পর্কিত প্রশ্ন
-    (r"\b(who is your boss|boss ke|তোমার বস কে|তুমার বস কে|কার তৈরি|তোমাকে কে বানিয়েছে|boss|admin ke)\b", [
-        f"TOMAL CHOWDHURY আমার সম্মানিত বস! 😎\nইউজারনেম: @{ADMIN_USERNAME}\nবসের কথামতোই চলি ভাই! 😂",
-        f"আমার বস হলেন TOMAL CHOWDHURY! 🔥\nযেকোনো বিষয়ে উনার সাথে যোগাযোগ করতে পারেন: @{ADMIN_USERNAME} 👑",
-    ]),
-    (r"\b(where do you live|kothay thako|তুমি কোথায় থাকো|তোমার বাড়ি কোথায়)\b", [
-        f"আমি আমার বসের সাথে ক্লাউডে থাকি 😎\nআমার বসের User Name: @{ADMIN_USERNAME}\nবসের কথামতোই চলি ভাই! 😂❤️",
-        "আমি টেলিগ্রামের সার্ভারে আর আমার প্রিয় ইউজারদের মনে থাকি! ☁️✨"
-    ]),
-    # ৪. অনুভূতি ও ইমোশন
-    (r"\b(mon kharap|মন খারাপ|ভালো লাগছে না|bhalo lagche na|sad|কষ্ট|kosto)\b", [
-        "আরে ভাই 😔 মন খারাপ করে বসে থাকবেন না। একটু হাসুন 😄 আমি আছি তো! ❤️",
-        "মন খারাপের মেঘ কেটে যাবে খুব দ্রুতই! একটু পছন্দের কোনো গান শুনুন। 🎶✨"
-    ]),
-    (r"\b(love|prem|প্রেম|ভালোবাসা|valobasha|crush)\b", [
-        "প্রেম করবেন? 😏 আগে নিজের ঘুম আর Wi-Fi কানেকশন ঠিক করেন ভাই! 😂❤️",
-        "প্রেম একটি চমৎকার অনুভূতি, তবে মন দিয়ে লক্ষ্য অর্জনের চেয়ে বড় রোমান্স আর কিছু নেই! 💡"
-    ])
-]
+def clean_text(text: str) -> str:
+    # মোবাইল কিবোর্ডের অদৃশ্য চিহ্ন ও স্পেস দূর করা
+    text = unicodedata.normalize('NFC', text)
+    text = text.replace('\u200c', '').replace('\u200d', '').strip().lower()
+    return text
 
 def check_smart_reply(text: str) -> str | None:
-    text_clean = text.strip().lower()
-    for pattern, responses in PATTERNS:
-        if re.search(pattern, text_clean, re.IGNORECASE):
-            return random.choice(responses)
+    t = clean_text(text)
+
+    # ১. বস ও অ্যাডমিন সম্পর্কিত (যেকোনোভাবে বললেই কাজ করবে)
+    if any(k in t for k in ["বস কে", "boss ke", "boss", "admin", "মালিক কে", "কার তৈরি", "বানিয়েছে", "তুমার বস", "তোমার বস"]):
+        responses = [
+            f"TOMAL CHOWDHURY আমার সম্মানিত বস! 😎\nআমার বসের User Name: @{ADMIN_USERNAME}\nবসের কথামতোই চলি ভাই! 😂👑",
+            f"TOMAL CHOWDHURY আমার বস! 🔥\nযেকোনো বিষয়ে উনার সাথে যোগাযোগ করতে পারেন: @{ADMIN_USERNAME} 😎"
+        ]
+        return random.choice(responses)
+
+    # ২. নাম ও পরিচয়
+    if any(k in t for k in ["তোমার নাম", "tomar nam", "নাম কি", "তুমি কে", "who are you", "তোমার পরিচয়"]):
+        responses = [
+            f"আমি আপনার অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট! 😎\nআমার বস হলেন TOMAL CHOWDHURY (@{ADMIN_USERNAME})! 👑",
+            "আমি একটি স্মার্ট এআই রোবট! আপনার যেকোনো প্রশ্নের উত্তর দিতে আমি প্রস্তুত। 🤖✨"
+        ]
+        return random.choice(responses)
+
+    # ৩. তুমি কোথায় থাকো
+    if any(k in t for k in ["কোথায় থাকো", "kothay thako", "কোথায় থাকিস", "বাড়ি কোথায়", "where do you live"]):
+        return f"আমি আমার বসের সাথে ক্লাউডে থাকি 😎\nআমার বসের User Name: @{ADMIN_USERNAME}\nবসের কথামতোই চলি 😂❤️"
+
+    # ৪. সালাম ও শুভেচ্ছা
+    if any(k in t for k in ["hi", "hello", "hey", "হাই", "হ্যালো", "সালাম", "আসসালামু আলাইকুম", "assalamu alaikum", "কেমন আছো", "kemon acho", "কেমন আছেন"]):
+        responses = [
+            "ওয়ালাইকুম আসসালাম! কেমন আছেন? আমি কীভাবে সাহায্য করতে পারি? 😊",
+            "হ্যালো! আশা করি দিনটি চমৎকার কাটছে! বলুন কী সাহায্য লাগবে? 🌸",
+            "আমি আলহামদুলিল্লাহ্‌ ভালো আছি! আপনি কেমন আছেন? ✨"
+        ]
+        return random.choice(responses)
+
+    # ৫. অনুভূতি ও ইমোশন
+    if any(k in t for k in ["মন খারাপ", "mon kharap", "ভালো লাগছে না", "bhalo lagche na", "sad", "কষ্ট"]):
+        return "আরে ভাই 😔 মন খারাপ করে বসে থাকবেন না। একটু হাসুন 😄 আমি আছি তো! ❤️"
+
+    if any(k in t for k in ["প্রেম", "prem", "ভালোবাসা", "valobasha", "love"]):
+        return "প্রেম করবেন? 😏 আগে নিজের ঘুম আর Wi-Fi ঠিক করেন ভাই! 😂❤️"
+
     return None
