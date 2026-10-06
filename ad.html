@@ -1,15 +1,22 @@
 <!DOCTYPE html>
 <html lang="bn">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+        content="width=device-width,
+        initial-scale=1.0,
+        maximum-scale=1.0,
+        user-scalable=no"
     >
 
     <title>Advertisement</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
@@ -21,56 +28,67 @@
             width: 100%;
             min-height: 100%;
             background: #111;
+            color: #fff;
             font-family: Arial, sans-serif;
         }
 
-        .page {
+        body {
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 450px;
+            padding: 25px 18px;
             text-align: center;
         }
 
         .title {
-            color: white;
-            font-size: 20px;
+            font-size: 23px;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
 
         .ad-box {
             width: 100%;
-            max-width: 420px;
             min-height: 250px;
             background: #222;
-            border-radius: 12px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
         }
 
-        .ad-button {
+        .ad-text {
+            color: #888;
+            font-size: 15px;
+        }
+
+        .open-ad {
             display: inline-block;
             margin-top: 20px;
-            padding: 14px 28px;
-            background: #1677ff;
-            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            background: #fff;
+            color: #111;
             text-decoration: none;
-            border-radius: 8px;
-            font-size: 16px;
+            font-size: 17px;
             font-weight: bold;
         }
 
         .info {
+            margin-top: 15px;
             color: #aaa;
             font-size: 13px;
-            margin-top: 12px;
+            line-height: 1.6;
         }
+
     </style>
+
 </head>
 
 <body>
@@ -82,13 +100,16 @@
     </div>
 
     <div class="ad-box">
-        <span style="color:#888;">
+
+        <span class="ad-text">
             Advertisement
         </span>
+
     </div>
 
     <a
-        class="ad-button"
+        id="adLink"
+        class="open-ad"
         href="https://www.profitableratecpmnetwork.com/vtaddgsm?key=bf49aea0b2b6e72b6d744dc6a9971422"
         target="_blank"
         rel="noopener noreferrer"
@@ -97,10 +118,57 @@
     </a>
 
     <div class="info">
-        বিজ্ঞাপনটি দেখার পর Back চাপুন এবং Telegram-এ ফিরে যান।
+        বিজ্ঞাপনটি নতুন পেজে খুলবে।
+        বিজ্ঞাপন দেখার পর Back চাপুন এবং
+        Video Web App-এ ফিরে যান।
     </div>
 
 </div>
 
+
+<script>
+
+(function(){
+
+    const adLink =
+        document.getElementById(
+            "adLink"
+        );
+
+
+    /*
+     * এই পেজটি যদি Web App-এর মাধ্যমে
+     * সরাসরি ব্যবহার করা হয়, তাহলে Ad
+     * নতুন tab-এ থাকবে।
+     *
+     * Telegram Web App-এর মূল page
+     * replace হবে না।
+     */
+
+    if(adLink){
+
+        adLink.addEventListener(
+            "click",
+            function(){
+
+                try{
+
+                    sessionStorage.setItem(
+                        "ad_link_clicked",
+                        "1"
+                    );
+
+                }catch(e){}
+
+            }
+        );
+
+    }
+
+})();
+
+</script>
+
 </body>
-  </html>
+
+</html>
