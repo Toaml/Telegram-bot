@@ -2,9 +2,6 @@ import aiohttp
 import os
 from config import ADMIN_USERNAME
 
-# Groq API Key (ঐচ্ছিক - ফ্রিতে console.groq.com থেকে নেওয়া যায়)
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-
 SYSTEM_PROMPT = f"""
 তুমি একজন অত্যন্ত চটপটে, অমায়িক, বুদ্ধিমান এবং মজার স্বভাবের টেলিগ্রাম এআই অ্যাসিস্ট্যান্ট।
 নিয়মাবলি:
@@ -15,17 +12,20 @@ SYSTEM_PROMPT = f"""
 """
 
 async def get_ai_response(user_message: str, chat_history: list = None) -> str:
+    # রানটাইমে সরাসরি কি পড়া এবং স্পেস থাকলে তা কেটে নেওয়া
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     if chat_history:
         messages.extend(chat_history[-4:])
     messages.append({"role": "user", "content": user_message})
 
-    # ১. Groq API ব্যবহার (যদি GROQ_API_KEY দেওয়া থাকে - পৃথিবীর সবচেয়ে দ্রুততম এআই)
-    if GROQ_API_KEY:
+    # ১. Groq API ব্যবহার (সুপার-ফাস্ট Llama 3.1)
+    if groq_key:
         try:
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {
-                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Authorization": f"Bearer {groq_key}",
                 "Content-Type": "application/json"
             }
             payload = {
@@ -39,10 +39,12 @@ async def get_ai_response(user_message: str, chat_history: list = None) -> str:
                     if resp.status == 200:
                         data = await resp.json()
                         return data["choices"][0]["message"]["content"].strip()
-        except Exception:
-            pass
+                    else:
+                        print(f"Groq API Error: {resp.status}")
+        except Exception as e:
+            print(f"Groq Request Exception: {e}")
 
-    # ২. সম্পূর্ণ ফ্রি অল্টারনেটিভ (কোনো API Key ছাড়াই কাজ করবে)
+    # ২. ব্যাকআপ ফ্রি এআই
     try:
         url = "https://text.pollinations.ai/"
         payload = {
@@ -50,12 +52,12 @@ async def get_ai_response(user_message: str, chat_history: list = None) -> str:
             "model": "mistral"
         }
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=12) as resp:
+            async with session.post(url, json=payload, timeout=10) as resp:
                 if resp.status == 200:
                     text_result = await resp.text()
-                    return text_result.strip()
+                    if text_result.strip():
+                        return text_result.strip()
     except Exception:
         pass
 
-    # ৩. শেষ ব্যাকআপ রেসপন্স
     return "আমি আপনার কথাটি বুঝতে পেরেছি! তবে সার্ভারে একটু চাপ থাকায় উত্তর পেতে সামান্য দেরি হচ্ছে। আবার লিখুন তো! 😊"
