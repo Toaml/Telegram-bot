@@ -14,7 +14,8 @@ from sqlalchemy import select, delete
 
 from config import (
     ADMIN_IDS,
-    ADMIN_USERNAME
+    ADMIN_USERNAME,
+    WEBAPP_BASE_URL
 )
 
 from database import (
@@ -42,23 +43,21 @@ from ad_system import attach_ad_to_keyboard
 
 
 # =========================================================
-# WEB APP
-# =========================================================
-
-WEBAPP_BASE_URL = (
-    "https://telegram-bot-7hr2.onrender.com"
-)
-
-
-# =========================================================
 # ADMIN SOCIAL LINKS
 # =========================================================
 
 ADMIN_SOCIAL_LINKS = {
-    "facebook": "https://www.facebook.com/share/19PVrFHGk2/",
-    "tiktok": "https://www.tiktok.com/@tomalchowdhury20",
-    "whatsapp": "https://wa.me/+8801311328266",
-    "telegram": "https://t.me/tomalchowdhury2"
+    "facebook":
+        "https://www.facebook.com/share/19PVrFHGk2/",
+
+    "tiktok":
+        "https://www.tiktok.com/@tomalchowdhury20",
+
+    "whatsapp":
+        "https://wa.me/+8801311328266",
+
+    "telegram":
+        "https://t.me/tomalchowdhury2"
 }
 
 
@@ -143,16 +142,12 @@ def detect_admin_social_request(text: str):
     if not text:
         return None
 
-    q = normalize_user_query(
-        text
-    )
+    q = normalize_user_query(text)
 
     if not q:
         return None
 
-    words = set(
-        q.split()
-    )
+    words = set(q.split())
 
     admin_words = {
         "admin",
@@ -169,6 +164,7 @@ def detect_admin_social_request(text: str):
     if not words.intersection(
         admin_words
     ):
+
         return None
 
     if words.intersection({
@@ -276,16 +272,12 @@ async def send_admin_social_link(
 
 def looks_like_content_request(text: str):
 
-    q = normalize_user_query(
-        text
-    )
+    q = normalize_user_query(text)
 
     if not q:
         return False
 
-    words = set(
-        q.split()
-    )
+    words = set(q.split())
 
     if words.intersection(
         CONTENT_REQUEST_WORDS
@@ -767,8 +759,11 @@ async def edit_saved_content_callback(
             return
 
         admin_upload_sessions[user_id] = {
-            "step": "EDITING_EXISTING_TITLE",
-            "target_cid": cid
+            "step":
+                "EDITING_EXISTING_TITLE",
+
+            "target_cid":
+                cid
         }
 
         await query.message.reply_text(
@@ -807,6 +802,51 @@ async def cancel_command(
 
 
 # =========================================================
+# VIDEO WEB APP MESSAGE
+# =========================================================
+
+async def send_video_webapp(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    content_item
+):
+
+    user_id = update.effective_user.id
+
+    webapp_url = (
+        WEBAPP_BASE_URL
+        + "/app?content_id="
+        + str(content_item.content_id)
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "🔓 OPEN",
+                web_app=WebAppInfo(
+                    url=webapp_url
+                )
+            )
+        ]
+    ])
+
+    await context.bot.send_message(
+        chat_id=user_id,
+        text=(
+            "🔒 *Content Locked*\n\n"
+            f"🎬 *{content_item.title}*\n"
+            f"📂 ক্যাটাগরি: {content_item.category}\n\n"
+            "ভিডিও দেখতে নিচের "
+            "*🔓 OPEN* বাটনে চাপুন।"
+        ),
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+    return True
+
+
+# =========================================================
 # SEND CONTENT TO USER
 # =========================================================
 
@@ -826,51 +866,26 @@ async def send_content_to_user(
     try:
 
         # =================================================
-        # VIDEO -> WEB APP
+        # VIDEO
         # =================================================
 
         if content_item.media_type == "video":
 
-            webapp_url = (
-                WEBAPP_BASE_URL
-                + "/app?content_id="
-                + str(content_item.content_id)
+            return await send_video_webapp(
+                update,
+                context,
+                content_item
             )
-
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        "🔓 OPEN",
-                        web_app=WebAppInfo(
-                            url=webapp_url
-                        )
-                    )
-                ]
-            ])
-
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=(
-                    "🔒 *Content Locked*\n\n"
-                    f"🎬 *{content_item.title}*\n"
-                    f"📂 ক্যাটাগরি: {content_item.category}\n\n"
-                    "ভিডিও দেখতে নিচের "
-                    "*🔓 OPEN* বাটনে চাপুন।"
-                ),
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-
-            return True
 
 
         # =================================================
-        # AUDIO / PHOTO / DOCUMENT
+        # NON VIDEO
         # =================================================
 
         keyboard = attach_ad_to_keyboard(
             InlineKeyboardMarkup([])
         )
+
 
         if content_item.media_type == "audio":
 
@@ -882,6 +897,7 @@ async def send_content_to_user(
                 parse_mode="Markdown"
             )
 
+
         elif content_item.media_type == "photo":
 
             await context.bot.send_photo(
@@ -891,6 +907,7 @@ async def send_content_to_user(
                 reply_markup=keyboard,
                 parse_mode="Markdown"
             )
+
 
         else:
 
@@ -902,7 +919,9 @@ async def send_content_to_user(
                 parse_mode="Markdown"
             )
 
+
         return True
+
 
     except Exception as e:
 
@@ -929,15 +948,16 @@ async def save_content_request(
 
         req = ContentRequest(
             user_id=user_id,
-            username=update.effective_user.username,
+            username=(
+                update.effective_user.username
+            ),
             query=text
         )
 
-        db_sess.add(
-            req
-        )
+        db_sess.add(req)
 
         await db_sess.commit()
+
 
     for admin_id in ADMIN_IDS:
 
@@ -955,6 +975,7 @@ async def save_content_request(
             )
 
         except Exception:
+
             pass
 
 
@@ -989,6 +1010,7 @@ async def show_available_content(
             if row[0]
         ]
 
+
     if not categories:
 
         await query.edit_message_text(
@@ -998,9 +1020,11 @@ async def show_available_content(
 
         return
 
+
     per_page = 8
 
     start = page * per_page
+
     end = start + per_page
 
     current_categories = categories[
@@ -1008,6 +1032,7 @@ async def show_available_content(
     ]
 
     keyboard = []
+
 
     for index, category in enumerate(
         current_categories
@@ -1024,7 +1049,9 @@ async def show_available_content(
             )
         ])
 
+
     nav = []
+
 
     if page > 0:
 
@@ -1037,6 +1064,7 @@ async def show_available_content(
             )
         )
 
+
     if end < len(categories):
 
         nav.append(
@@ -1048,11 +1076,11 @@ async def show_available_content(
             )
         )
 
+
     if nav:
 
-        keyboard.append(
-            nav
-        )
+        keyboard.append(nav)
+
 
     keyboard.append([
         InlineKeyboardButton(
@@ -1060,6 +1088,7 @@ async def show_available_content(
             callback_data="btn_search_prompt"
         )
     ])
+
 
     await query.edit_message_text(
         "📂 *Available Content*\n\n"
@@ -1102,6 +1131,7 @@ async def show_category_content(
             if row[0]
         ]
 
+
         if (
             category_index < 0
             or category_index >= len(categories)
@@ -1113,9 +1143,11 @@ async def show_category_content(
 
             return
 
+
         category = categories[
             category_index
         ]
+
 
         result = await session.execute(
             select(Content)
@@ -1129,6 +1161,7 @@ async def show_category_content(
 
         contents = result.scalars().all()
 
+
     if not contents:
 
         await query.edit_message_text(
@@ -1139,7 +1172,9 @@ async def show_category_content(
 
         return
 
+
     keyboard = []
+
 
     for item in contents[:30]:
 
@@ -1148,6 +1183,7 @@ async def show_category_content(
         if len(title) > 45:
 
             title = title[:42] + "..."
+
 
         keyboard.append([
             InlineKeyboardButton(
@@ -1158,12 +1194,14 @@ async def show_category_content(
             )
         ])
 
+
     keyboard.append([
         InlineKeyboardButton(
             "📂 Back to Categories",
             callback_data="user_categories:0"
         )
     ])
+
 
     await query.edit_message_text(
         f"📂 *{category}*\n\n"
@@ -1199,6 +1237,7 @@ async def send_selected_content(
             result.scalars().first()
         )
 
+
     if not content_item:
 
         await query.answer(
@@ -1208,7 +1247,9 @@ async def send_selected_content(
 
         return
 
+
     await query.answer()
+
 
     try:
 
@@ -1218,37 +1259,11 @@ async def send_selected_content(
 
         if content_item.media_type == "video":
 
-            webapp_url = (
-                WEBAPP_BASE_URL
-                + "/app?content_id="
-                + str(content_item.content_id)
+            return await send_video_webapp(
+                update,
+                context,
+                content_item
             )
-
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        "🔓 OPEN",
-                        web_app=WebAppInfo(
-                            url=webapp_url
-                        )
-                    )
-                ]
-            ])
-
-            await context.bot.send_message(
-                chat_id=query.from_user.id,
-                text=(
-                    "🔒 *Content Locked*\n\n"
-                    f"🎬 *{content_item.title}*\n"
-                    f"📂 ক্যাটাগরি: {content_item.category}\n\n"
-                    "ভিডিও দেখতে নিচের "
-                    "*🔓 OPEN* বাটনে চাপুন।"
-                ),
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-
-            return
 
 
         # =================================================
@@ -1260,9 +1275,11 @@ async def send_selected_content(
             f"📂 ক্যাটাগরি: {content_item.category}"
         )
 
+
         keyboard = attach_ad_to_keyboard(
             InlineKeyboardMarkup([])
         )
+
 
         if content_item.media_type == "audio":
 
@@ -1274,6 +1291,7 @@ async def send_selected_content(
                 reply_markup=keyboard
             )
 
+
         elif content_item.media_type == "photo":
 
             await context.bot.send_photo(
@@ -1284,6 +1302,7 @@ async def send_selected_content(
                 reply_markup=keyboard
             )
 
+
         else:
 
             await context.bot.send_document(
@@ -1293,6 +1312,7 @@ async def send_selected_content(
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
+
 
     except Exception as e:
 
@@ -1315,7 +1335,9 @@ async def user_callback_handler(
 ):
 
     query = update.callback_query
+
     data = query.data
+
 
     if data == "btn_categories_list":
 
@@ -1328,6 +1350,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     if data.startswith(
         "user_categories:"
@@ -1345,6 +1368,7 @@ async def user_callback_handler(
 
             page = 0
 
+
         await show_available_content(
             update,
             context,
@@ -1352,6 +1376,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     if data.startswith(
         "user_cat:"
@@ -1373,6 +1398,7 @@ async def user_callback_handler(
 
             return
 
+
         await show_category_content(
             update,
             context,
@@ -1380,6 +1406,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     if data.startswith(
         "user_content:"
@@ -1400,6 +1427,7 @@ async def user_callback_handler(
 
             return
 
+
         await send_selected_content(
             update,
             context,
@@ -1407,6 +1435,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     if data == "btn_search_prompt":
 
@@ -1425,6 +1454,7 @@ async def user_callback_handler(
 
         return
 
+
     if data == "btn_ai_help":
 
         await query.answer()
@@ -1434,6 +1464,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     if data == "btn_content_help":
 
@@ -1451,6 +1482,7 @@ async def user_callback_handler(
 
         return
 
+
     if data == "btn_help":
 
         await query.answer()
@@ -1460,6 +1492,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     if data == "btn_notifications":
 
@@ -1471,6 +1504,7 @@ async def user_callback_handler(
         )
 
         return
+
 
     await query.answer()
 
@@ -1491,10 +1525,13 @@ async def handle_user_text(
 
         return
 
+
     text = update.message.text.strip()
+
 
     if not text:
         return
+
 
     user_id = update.effective_user.id
 
@@ -1509,21 +1546,26 @@ async def handle_user_text(
         user_id
     )
 
+
     if session:
 
         step = session.get(
             "step"
         )
 
+
         if step == "WAITING_TITLE":
 
             session["title"] = text
+
             session["step"] = "SELECTING_CAT"
+
 
             keyboard = get_category_keyboard(
                 page=0,
                 callback_prefix="admin_cat"
             )
+
 
             await update.message.reply_text(
                 f"✅ কন্টেন্টের নাম: *{text}*\n\n"
@@ -1535,6 +1577,7 @@ async def handle_user_text(
 
             return
 
+
         if step == "WAITING_CUSTOM_CAT":
 
             await finalize_content_save(
@@ -1545,11 +1588,13 @@ async def handle_user_text(
 
             return
 
+
         if step == "EDITING_EXISTING_TITLE":
 
             cid = session.get(
                 "target_cid"
             )
+
 
             async with AsyncSessionLocal() as db_sess:
 
@@ -1559,9 +1604,11 @@ async def handle_user_text(
                     )
                 )
 
+
                 content = (
                     result.scalars().first()
                 )
+
 
                 if content:
 
@@ -1572,13 +1619,16 @@ async def handle_user_text(
                         f"{content.category.lower()}"
                     )
 
+
                     await db_sess.commit()
+
 
                     await update.message.reply_text(
                         f"✅ কন্টেন্ট #{cid}-এর নাম পরিবর্তন "
                         f"করে *{text}* করা হয়েছে!",
                         parse_mode="Markdown"
                     )
+
 
             admin_upload_sessions.pop(
                 user_id,
@@ -1601,10 +1651,12 @@ async def handle_user_text(
 
         bot_username = bot_user.username
 
+
         mentioned = (
             f"@{bot_username}".lower()
             in text.lower()
         )
+
 
         replied_to_bot = (
             update.message.reply_to_message
@@ -1613,9 +1665,11 @@ async def handle_user_text(
             == bot_user.id
         )
 
+
         if not mentioned and not replied_to_bot:
 
             return
+
 
         text = re.sub(
             rf"@{re.escape(bot_username)}",
@@ -1623,6 +1677,7 @@ async def handle_user_text(
             text,
             flags=re.IGNORECASE
         ).strip()
+
 
         if not text:
             return
@@ -1636,6 +1691,7 @@ async def handle_user_text(
         text
     )
 
+
     if social_type:
 
         sent_social = await send_admin_social_link(
@@ -1643,6 +1699,7 @@ async def handle_user_text(
             context,
             social_type
         )
+
 
         if sent_social:
             return
@@ -1656,6 +1713,7 @@ async def handle_user_text(
         text
     )
 
+
     if content_item:
 
         wait_msg = await update.message.reply_text(
@@ -1663,11 +1721,13 @@ async def handle_user_text(
             "একটু অপেক্ষা করুন, দিচ্ছি..... ⏳"
         )
 
+
         sent = await send_content_to_user(
             update,
             context,
             content_item
         )
+
 
         try:
 
@@ -1676,6 +1736,7 @@ async def handle_user_text(
         except Exception:
 
             pass
+
 
         if sent:
             return
@@ -1695,6 +1756,7 @@ async def handle_user_text(
             text
         )
 
+
         not_found_markup = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton(
@@ -1710,6 +1772,7 @@ async def handle_user_text(
             ]
         ])
 
+
         await update.message.reply_text(
             "😔 Sorry! আপনার চাওয়া অনুযায়ী এই "
             "content এখনো আমার database-এ যোগ করা হয়নি।\n\n"
@@ -1719,6 +1782,7 @@ async def handle_user_text(
             "content দেখতে পারেন। 👇",
             reply_markup=not_found_markup
         )
+
 
         return
 
@@ -1730,6 +1794,7 @@ async def handle_user_text(
     smart_reply = check_smart_reply(
         text
     )
+
 
     if smart_reply:
 
@@ -1752,6 +1817,7 @@ async def handle_user_text(
         re.IGNORECASE
     )
 
+
     if (
         (
             "মনে করিয়ে" in text
@@ -1764,6 +1830,7 @@ async def handle_user_text(
         hour = int(
             time_match.group(1)
         )
+
 
         if (
             any(
@@ -1780,6 +1847,7 @@ async def handle_user_text(
 
             hour += 12
 
+
         elif (
             "সকাল" in text
             and hour == 12
@@ -1787,9 +1855,11 @@ async def handle_user_text(
 
             hour = 0
 
+
         rem_type = "custom"
 
         lower_text = text.lower()
+
 
         if (
             "পড়া" in text
@@ -1798,12 +1868,14 @@ async def handle_user_text(
 
             rem_type = "study"
 
+
         elif (
             "খেলা" in text
             or "play" in lower_text
         ):
 
             rem_type = "play"
+
 
         elif (
             "কাজ" in text
@@ -1812,12 +1884,14 @@ async def handle_user_text(
 
             rem_type = "work"
 
+
         elif (
             "ঘুমা" in text
             or "sleep" in lower_text
         ):
 
             rem_type = "sleep"
+
 
         elif (
             "খাবার" in text
@@ -1826,7 +1900,11 @@ async def handle_user_text(
 
             rem_type = "food"
 
-        schedule_str = f"{hour:02d}:00"
+
+        schedule_str = (
+            f"{hour:02d}:00"
+        )
+
 
         async with AsyncSessionLocal() as db_sess:
 
@@ -1844,15 +1922,18 @@ async def handle_user_text(
 
             await db_sess.commit()
 
+
         await reload_reminders(
             context.bot
         )
+
 
         await update.message.reply_text(
             f"✅ ঠিক আছে! প্রতিদিন "
             f"{schedule_str}-এ আপনাকে মনে করিয়ে "
             "দেওয়া হবে। ⏰"
         )
+
 
         return
 
@@ -1866,9 +1947,11 @@ async def handle_user_text(
         action="typing"
     )
 
+
     ai_reply = await get_ai_response(
         text
     )
+
 
     await update.message.reply_text(
         ai_reply
@@ -1886,6 +1969,7 @@ async def notifications_menu(
 
     user_id = update.effective_user.id
 
+
     async with AsyncSessionLocal() as db_sess:
 
         user = (
@@ -1896,6 +1980,7 @@ async def notifications_menu(
             )
         ).scalars().first()
 
+
     if not user:
 
         user = await get_or_create_user(
@@ -1905,6 +1990,7 @@ async def notifications_menu(
             update.effective_user.last_name
         )
 
+
     def get_status_icon(val):
 
         return (
@@ -1912,6 +1998,7 @@ async def notifications_menu(
             if val
             else "❌ OFF"
         )
+
 
     keyboard = [
         [
@@ -1979,9 +2066,11 @@ async def notifications_menu(
         ]
     ]
 
+
     markup = InlineKeyboardMarkup(
         keyboard
     )
+
 
     if update.callback_query:
 
@@ -2013,21 +2102,41 @@ async def toggle_notification_callback(
 
     await query.answer()
 
+
     field_map = {
-        "toggle_prayer_notify": "prayer_notify",
-        "toggle_hourly_notify": "hourly_notify",
-        "toggle_study_notify": "study_notify",
-        "toggle_work_notify": "work_notify",
-        "toggle_play_notify": "play_notify",
-        "toggle_sleep_notify": "sleep_notify",
-        "toggle_wake_notify": "wake_notify",
-        "toggle_food_notify": "food_notify",
-        "toggle_custom_notify": "custom_notify"
+        "toggle_prayer_notify":
+            "prayer_notify",
+
+        "toggle_hourly_notify":
+            "hourly_notify",
+
+        "toggle_study_notify":
+            "study_notify",
+
+        "toggle_work_notify":
+            "work_notify",
+
+        "toggle_play_notify":
+            "play_notify",
+
+        "toggle_sleep_notify":
+            "sleep_notify",
+
+        "toggle_wake_notify":
+            "wake_notify",
+
+        "toggle_food_notify":
+            "food_notify",
+
+        "toggle_custom_notify":
+            "custom_notify"
     }
+
 
     field = field_map.get(
         query.data
     )
+
 
     if field:
 
@@ -2035,6 +2144,7 @@ async def toggle_notification_callback(
             query.from_user.id,
             field
         )
+
 
         await notifications_menu(
             update,
