@@ -14,12 +14,17 @@ def normalize_text(text: str) -> str:
     if not text:
         return ""
 
-    text = unicodedata.normalize(
-        "NFKC",
-        str(text)
-    )
+    text = unicodedata.normalize("NFKC", str(text))
 
     text = text.lower().strip()
+
+    # underscore / hyphen / punctuation -> space
+    text = re.sub(
+        r"[_\-]+",
+        " ",
+        text,
+        flags=re.UNICODE
+    )
 
     # punctuation বাদ দিয়ে space
     text = re.sub(
@@ -29,23 +34,14 @@ def normalize_text(text: str) -> str:
         flags=re.UNICODE
     )
 
-    # একাধিক space -> একটি space
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    )
+    # একাধিক space -> একটি
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
 
 # =========================================================
 # REQUEST / ACTION WORDS
-#
-# এগুলো শুধু command/request।
-# এগুলো remove হবে।
-#
-# কিন্তু "গান", "মুভি", "Tiktok" remove হবে না।
 # =========================================================
 
 REQUEST_WORDS = {
@@ -86,7 +82,7 @@ REQUEST_WORDS = {
     "find",
     "search",
     "one",
-    "ekta"
+    "ekta",
 }
 
 
@@ -95,7 +91,6 @@ REQUEST_WORDS = {
 # =========================================================
 
 def clean_query(text: str) -> str:
-
     normalized = normalize_text(text)
 
     if not normalized:
@@ -106,7 +101,6 @@ def clean_query(text: str) -> str:
     cleaned = []
 
     for word in words:
-
         if word in REQUEST_WORDS:
             continue
 
@@ -116,11 +110,23 @@ def clean_query(text: str) -> str:
 
 
 # =========================================================
+# WORDS
+# =========================================================
+
+def get_words(text: str):
+    normalized = normalize_text(text)
+
+    if not normalized:
+        return []
+
+    return normalized.split()
+
+
+# =========================================================
 # SIMILARITY
 # =========================================================
 
 def similarity(a: str, b: str) -> float:
-
     a = normalize_text(a)
     b = normalize_text(b)
 
@@ -139,26 +145,54 @@ def similarity(a: str, b: str) -> float:
 # =========================================================
 
 def word_overlap(a: str, b: str) -> float:
-
-    a_words = set(
-        normalize_text(a).split()
-    )
-
-    b_words = set(
-        normalize_text(b).split()
-    )
+    a_words = set(get_words(a))
+    b_words = set(get_words(b))
 
     if not a_words or not b_words:
         return 0.0
 
-    common = a_words.intersection(
-        b_words
-    )
+    common = a_words.intersection(b_words)
 
     return len(common) / max(
         len(a_words),
         len(b_words)
     )
+
+
+# =========================================================
+# TOKEN MATCH
+# =========================================================
+
+def token_match(query: str, target: str) -> float:
+    q_words = get_words(query)
+    t_words = get_words(target)
+
+    if not q_words or not t_words:
+        return 0.0
+
+    matched = 0
+
+    for q_word in q_words:
+        for t_word in t_words:
+
+            if q_word == t_word:
+                matched += 1
+                break
+
+            # ছোট typo / কাছাকাছি শব্দ
+            if len(q_word) >= 3 and len(t_word) >= 3:
+
+                ratio = SequenceMatcher(
+                    None,
+                    q_word,
+                    t_word
+                ).ratio()
+
+                if ratio >= 0.82:
+                    matched += 1
+                    break
+
+    return matched / len(q_words)
 
 
 # =========================================================
@@ -190,66 +224,101 @@ def score_content(
     if not title and not category:
         return 0.0
 
-    # -----------------------------------------------------
-    # EXACT TITLE
-    # -----------------------------------------------------
+    # =====================================================
+    # 1. EXACT TITLE
+    # =====================================================
 
     if q == title:
-        return 1000.0
+        return 1200.0
 
-    # -----------------------------------------------------
-    # EXACT CATEGORY
-    # -----------------------------------------------------
+    # =====================================================
+    # 2. EXACT CATEGORY
+    #
+    # যেমন:
+    # User: Short video_3
+    # DB:   Short video_3
+    #
+    # normalize হওয়ার পরে:
+    # short video 3 == short video 3
+    # =====================================================
 
     if q == category:
-        return 980.0
+        return 1500.0
 
-    # -----------------------------------------------------
-    # TITLE CONTAINS QUERY
-    # -----------------------------------------------------
+    # =====================================================
+    # 3. TITLE CONTAINS QUERY
+    # =====================================================
 
     if q in title:
-        return 900.0
+        return 1100.0
 
-    # -----------------------------------------------------
-    # CATEGORY CONTAINS QUERY
-    # -----------------------------------------------------
+    # =====================================================
+    # 4. CATEGORY CONTAINS QUERY
+    # =====================================================
 
     if q in category:
-        return 890.0
+        return 1050.0
 
-    # -----------------------------------------------------
-    # QUERY CONTAINS TITLE
-    # -----------------------------------------------------
+    # =====================================================
+    # 5. QUERY CONTAINS TITLE
+    # =====================================================
 
     if (
         title
         and len(title) >= 2
         and title in q
     ):
-        return 880.0
+        return 1080.0
 
-    # -----------------------------------------------------
-    # QUERY CONTAINS CATEGORY
-    # -----------------------------------------------------
+    # =====================================================
+    # 6. QUERY CONTAINS CATEGORY
+    # =====================================================
 
     if (
         category
         and len(category) >= 2
         and category in q
     ):
-        return 870.0
+        return 1030.0
 
-    # -----------------------------------------------------
-    # KEYWORDS
-    # -----------------------------------------------------
+    # =====================================================
+    # 7. KEYWORDS EXACT / CONTAINS
+    # =====================================================
+
+    if q == keywords:
+        return 1000.0
 
     if q in keywords:
-        return 850.0
+        return 950.0
 
-    # -----------------------------------------------------
-    # WORD OVERLAP
-    # -----------------------------------------------------
+    # =====================================================
+    # 8. TOKEN MATCH
+    # =====================================================
+
+    title_token = token_match(
+        q,
+        title
+    )
+
+    category_token = token_match(
+        q,
+        category
+    )
+
+    keyword_token = token_match(
+        q,
+        keywords
+    )
+
+    token_score = max(
+        title_token * 900,
+        category_token * 1000,
+        keyword_token * 850
+    )
+
+    # =====================================================
+    # 9. WORD OVERLAP
+    # =====================================================
 
     title_overlap = word_overlap(
         q,
@@ -267,14 +336,14 @@ def score_content(
     )
 
     overlap_score = max(
-        title_overlap * 800,
-        category_overlap * 820,
-        keyword_overlap * 780
+        title_overlap * 850,
+        category_overlap * 950,
+        keyword_overlap * 800
     )
 
-    # -----------------------------------------------------
-    # FUZZY
-    # -----------------------------------------------------
+    # =====================================================
+    # 10. FUZZY MATCH
+    # =====================================================
 
     title_similarity = similarity(
         q,
@@ -286,36 +355,85 @@ def score_content(
         category
     )
 
+    keyword_similarity = similarity(
+        q,
+        keywords
+    )
+
     fuzzy_score = max(
-        title_similarity * 650,
-        category_similarity * 680
+        title_similarity * 700,
+        category_similarity * 800,
+        keyword_similarity * 600
     )
 
     return max(
+        token_score,
         overlap_score,
         fuzzy_score
     )
 
 
 # =========================================================
-# SEARCH DATABASE
+# CATEGORY DIRECT SEARCH
+#
+# User শুধু category লিখলে:
+#
+# Short video_3
+#
+# category-এর সর্বশেষ content ফেরত দেবে।
+# =========================================================
+
+async def search_category(query: str):
+
+    q = normalize_text(query)
+
+    if not q:
+        return None
+
+    async with AsyncSessionLocal() as session:
+
+        result = await session.execute(
+            select(Content)
+            .order_by(Content.created_at.desc())
+        )
+
+        contents = result.scalars().all()
+
+    if not contents:
+        return None
+
+    for item in contents:
+
+        category = normalize_text(
+            item.category or ""
+        )
+
+        if not category:
+            continue
+
+        if q == category:
+            return item
+
+    return None
+
+
+# =========================================================
+# DATABASE SEARCH
 # =========================================================
 
 async def search_media(query: str):
 
-    original_query = normalize_text(
-        query
-    )
+    original_query = normalize_text(query)
 
     if not original_query:
         return None
 
     # -----------------------------------------------------
-    # Remove only request words
+    # Request word বাদ দেওয়া
     #
-    # "Tiktok দাও" -> "tiktok"
-    # "গান দাও" -> "গান"
-    # "মুভি দেন" -> "মুভি"
+    # "Short video_3 দাও"
+    # ->
+    # "short video 3"
     # -----------------------------------------------------
 
     cleaned_query = clean_query(
@@ -325,10 +443,27 @@ async def search_media(query: str):
     if not cleaned_query:
         cleaned_query = original_query
 
+    # =====================================================
+    # FIRST PRIORITY:
+    # EXACT CATEGORY
+    # =====================================================
+
+    category_result = await search_category(
+        cleaned_query
+    )
+
+    if category_result:
+        return category_result
+
+    # =====================================================
+    # DATABASE LOAD
+    # =====================================================
+
     async with AsyncSessionLocal() as session:
 
         result = await session.execute(
-            select(Content).order_by(
+            select(Content)
+            .order_by(
                 Content.created_at.desc()
             )
         )
@@ -338,9 +473,9 @@ async def search_media(query: str):
     if not contents:
         return None
 
-    # -----------------------------------------------------
+    # =====================================================
     # QUERY VARIATIONS
-    # -----------------------------------------------------
+    # =====================================================
 
     queries = []
 
@@ -357,9 +492,9 @@ async def search_media(query: str):
             original_query
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # SEARCH
-    # -----------------------------------------------------
+    # =====================================================
 
     best_item = None
     best_score = 0.0
@@ -383,17 +518,44 @@ async def search_media(query: str):
             best_score = item_score
             best_item = item
 
-    # -----------------------------------------------------
+    # =====================================================
     # STRONG MATCH
-    # -----------------------------------------------------
+    # =====================================================
 
     if best_item is not None:
 
+        # Strong exact/semantic match
         if best_score >= 700:
             return best_item
 
         # Fuzzy match
-        if best_score >= 300:
+        if best_score >= 450:
             return best_item
 
     return None
+
+এখন কী হবে
+
+তোমার Database-এ যদি থাকে:
+
+Name: নাটকের শট ভিডিও
+Category: Short video_3
+Database ID: #11
+
+User লিখলে:
+
+Short video_3
+
+→ Bot সরাসরি "Short video_3" category match করবে এবং #11 content পাবে।
+
+এগুলোও কাজ করবে:
+
+Short video_3 দাও
+short video 3
+short-video-3
+নাটকের শট ভিডিও
+নাটকের শট ভিডিও দাও
+
+আর সবচেয়ে গুরুত্বপূর্ণ: AI-তে যাওয়ার আগেই "search_media()" এই content খুঁজে পাবে, তাই ""হ্যালো! আপনি কী ধরনের শোর্ট ভিডিও চান?"" ধরনের AI উত্তর আর আসবে না, যখন Database-এ matching content আছে।
+
+এখন শুধু এই "search_engine.py" replace করে GitHub-এ commit/push → Render deploy দাও।
