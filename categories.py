@@ -23,14 +23,13 @@ CATEGORIES = [
 
 ITEMS_PER_PAGE = 8
 
-def get_category_keyboard(page: int = 0, callback_prefix: str = "cat") -> InlineKeyboardMarkup:
+def get_category_keyboard(page: int = 0, callback_prefix: str = "admin_cat") -> InlineKeyboardMarkup:
     total_items = len(CATEGORIES)
     start_idx = page * ITEMS_PER_PAGE
     end_idx = start_idx + ITEMS_PER_PAGE
     current_categories = CATEGORIES[start_idx:end_idx]
 
     buttons = []
-    # ২ টি করে বাটন এক লাইনে
     row = []
     for cat in current_categories:
         row.append(InlineKeyboardButton(text=f"📂 {cat}", callback_data=f"{callback_prefix}:{cat}"))
@@ -40,13 +39,22 @@ def get_category_keyboard(page: int = 0, callback_prefix: str = "cat") -> Inline
     if row:
         buttons.append(row)
 
+    # পেজিনেশন বাটন
     nav_row = []
     if page > 0:
         nav_row.append(InlineKeyboardButton(text="⬅️ Back", callback_data=f"{callback_prefix}_page:{page - 1}"))
     if end_idx < total_items:
         nav_row.append(InlineKeyboardButton(text="➡️ See More", callback_data=f"{callback_prefix}_page:{page + 1}"))
-
     if nav_row:
         buttons.append(nav_row)
+
+    # অ্যাডমিন এডিট ও কাস্টম অপশন বাটন
+    buttons.append([
+        InlineKeyboardButton(text="✏️ নাম পরিবর্তন করুন", callback_data="admin_edit_name_btn"),
+        InlineKeyboardButton(text="✍️ কাস্টম ক্যাটাগরি", callback_data="admin_custom_cat_btn")
+    ])
+    buttons.append([
+        InlineKeyboardButton(text="❌ আপলোড বাতিল", callback_data="admin_cancel_btn")
+    ])
 
     return InlineKeyboardMarkup(buttons)
