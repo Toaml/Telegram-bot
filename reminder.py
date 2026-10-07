@@ -6,21 +6,9 @@
 # - Automatic hourly time notification
 # - Time + Date + Weekday + Temperature + Location
 # - Fajr / Dhuhr / Asr / Maghrib / Isha reminders
-# - Wake up
-# - Breakfast
-# - Study
-# - Lunch
-# - Bath
-# - Sports
-# - Water
-# - Work
-# - Evening
-# - Dinner
-# - Sleep
-# - Family
-# - Motivation
-# - Good habits
-# - Islamic reminders
+# - Wake up / Breakfast / Study / Lunch / Bath / Sports
+# - Water / Work / Evening / Dinner / Sleep / Family
+# - Motivation / Good habits / Islamic reminders
 # - 500+ message variations
 # - Persistent database users
 # - User does not need to be online
@@ -67,13 +55,9 @@ _scheduler_running = False
 # ============================================================
 
 _last_hour_sent = set()
-
 _last_prayer_sent = set()
-
 _last_daily_sent = set()
-
 _last_extra_sent = set()
-
 _message_history = {}
 
 
@@ -89,7 +73,6 @@ _weather_cache = {}
 # ============================================================
 
 BASE_MESSAGES = {
-
     "wake": [
         "🌅 সুপ্রভাত! ঘুম থেকে ওঠার সময় হয়েছে।",
         "☀️ সকাল হয়ে গেছে। এবার ঘুম থেকে উঠে নতুন দিন শুরু করুন।",
@@ -107,7 +90,6 @@ BASE_MESSAGES = {
         "🌄 সকাল এসেছে। আজকের লক্ষ্যগুলো মনে করুন।",
         "🌞 অলসতা বাদ দিন। আজকের কাজ আজই শুরু করুন।",
     ],
-
     "breakfast": [
         "🍳 নাশতা করার সময় হয়েছে। দিনের শুরুতে পুষ্টিকর খাবার খান।",
         "🥪 সকালের খাবার খেতে ভুলবেন না।",
@@ -125,7 +107,6 @@ BASE_MESSAGES = {
         "🍳 সকালের নাশতা মিস করবেন না।",
         "🍽️ নাশতা করে দিনের কাজ শুরু করুন।",
     ],
-
     "study": [
         "📚 পড়াশোনার সময় হয়েছে। মনোযোগ দিয়ে কিছুক্ষণ পড়ুন।",
         "📝 আজকের পড়াশোনাটা শুরু করুন। ছোট অগ্রগতিও গুরুত্বপূর্ণ।",
@@ -143,7 +124,6 @@ BASE_MESSAGES = {
         "🧠 আজ নতুন একটি বিষয় শেখার চেষ্টা করুন।",
         "✍️ মনোযোগ দিয়ে পড়ুন এবং প্রয়োজনীয় বিষয়গুলো লিখে রাখুন।",
     ],
-
     "lunch": [
         "🍛 দুপুরের খাবারের সময় হয়েছে। সময়মতো খাবার খান।",
         "🍚 দুপুরের খাবার খেয়ে নিন এবং শরীরকে শক্তি দিন।",
@@ -161,7 +141,6 @@ BASE_MESSAGES = {
         "🍛 দুপুর হয়ে গেছে। খাবারের সময় হয়েছে।",
         "🥗 সময়মতো খাবার খাওয়ার অভ্যাস করুন।",
     ],
-
     "bath": [
         "🚿 গোসল করার সময় হয়েছে। নিজেকে সতেজ করে নিন।",
         "🛁 একটু সময় নিয়ে গোসল করে ফ্রেশ হয়ে নিন।",
@@ -174,7 +153,6 @@ BASE_MESSAGES = {
         "🚿 শরীর পরিষ্কার-পরিচ্ছন্ন রাখুন।",
         "🧼 এখন একটু ফ্রেশ হয়ে নিন।",
     ],
-
     "sports": [
         "⚽ খেলাধুলা বা ব্যায়ামের সময় হয়েছে।",
         "🏃 কিছুক্ষণ হাঁটাহাঁটি বা ব্যায়াম করুন।",
@@ -187,7 +165,6 @@ BASE_MESSAGES = {
         "🏃 শরীরকে সক্রিয় রাখার জন্য কিছুক্ষণ হাঁটুন।",
         "💪 আজকের শরীরচর্চার সময় হয়েছে।",
     ],
-
     "water": [
         "💧 পানি পান করার সময় হয়েছে। এক গ্লাস পানি পান করুন।",
         "🥤 শরীরকে পানিশূন্যতা থেকে রক্ষা করতে পানি পান করুন।",
@@ -202,7 +179,6 @@ BASE_MESSAGES = {
         "🚰 পানি খাওয়ার কথা মনে আছে তো? এখন পান করুন।",
         "💧 নিয়মিত পানি পান করার অভ্যাস করুন।",
     ],
-
     "work": [
         "💼 কাজের সময় হয়েছে। মনোযোগ দিয়ে কাজ শুরু করুন।",
         "📋 আজকের গুরুত্বপূর্ণ কাজগুলো শেষ করার চেষ্টা করুন।",
@@ -220,7 +196,6 @@ BASE_MESSAGES = {
         "💼 এখন গুরুত্বপূর্ণ কাজটি শুরু করার সময়।",
         "🎯 সময়ের সঠিক ব্যবহার করুন।",
     ],
-
     "evening": [
         "🌇 সন্ধ্যা হয়ে গেছে। দিনের কাজগুলো একটু গুছিয়ে নিন।",
         "🌆 সুন্দর সন্ধ্যা। পরিবারকে একটু সময় দিন।",
@@ -233,7 +208,6 @@ BASE_MESSAGES = {
         "🌇 দিনের শেষ ভাগটা সুন্দরভাবে কাটান।",
         "🌆 সন্ধ্যায় কাছের মানুষদের একটু সময় দিন।",
     ],
-
     "dinner": [
         "🍽️ রাতের খাবারের সময় হয়েছে। সময়মতো খাবার খান।",
         "🍛 রাতের খাবার খেয়ে নিন।",
@@ -246,7 +220,6 @@ BASE_MESSAGES = {
         "🍽️ ডিনার করে কিছুক্ষণ বিশ্রাম নিন।",
         "🍚 রাতের খাবার বাদ দেবেন না।",
     ],
-
     "sleep": [
         "😴 ঘুমানোর সময় হয়েছে। আজকের কাজ শেষ করে বিশ্রাম নিন।",
         "🌙 এবার ঘুমের প্রস্তুতি নিন। শরীরের বিশ্রাম দরকার।",
@@ -264,7 +237,6 @@ BASE_MESSAGES = {
         "🛏️ আগামী দিনের জন্য নিজেকে প্রস্তুত করুন।",
         "😴 শান্তিতে ঘুমান এবং আগামীকাল নতুনভাবে শুরু করুন।",
     ],
-
     "motivation": [
         "💪 হাল ছাড়বেন না। ধীরে ধীরে এগিয়ে যান।",
         "🌟 আজকের ছোট চেষ্টা আগামীকালের বড় সাফল্য হতে পারে।",
@@ -282,7 +254,6 @@ BASE_MESSAGES = {
         "🔥 নিজের স্বপ্নের জন্য কাজ করুন।",
         "⭐ ছোট পদক্ষেপও আপনাকে সামনে নিয়ে যায়।",
     ],
-
     "family": [
         "❤️ পরিবারের মানুষগুলোর খোঁজ নিন।",
         "👨‍👩‍👧 পরিবারের সঙ্গে কিছু সময় কাটান।",
@@ -295,7 +266,6 @@ BASE_MESSAGES = {
         "❤️ বাবা-মায়ের খোঁজ নিন।",
         "👪 পরিবারের সঙ্গে সুন্দর সময় কাটান।",
     ],
-
     "habit": [
         "✨ আজ একটি ভালো অভ্যাস তৈরি করুন।",
         "🧹 নিজের চারপাশ পরিষ্কার রাখুন।",
@@ -310,7 +280,6 @@ BASE_MESSAGES = {
         "🧹 নিজের জায়গা পরিষ্কার রাখার অভ্যাস করুন।",
         "📵 প্রয়োজন ছাড়া ফোন ব্যবহার কমান।",
     ],
-
     "islamic": [
         "☪️ আল্লাহকে স্মরণ করুন এবং ভালো কাজ করার চেষ্টা করুন।",
         "🤲 নিজের জন্য ও পরিবারের জন্য দোয়া করুন।",
@@ -369,27 +338,15 @@ MESSAGE_ENDINGS = [
 # ============================================================
 
 def build_message_pool():
-
     pool = {}
-
     for category, messages in BASE_MESSAGES.items():
-
         combinations = []
-
         for message in messages:
-
             combinations.append(message)
-
             for ending in MESSAGE_ENDINGS:
-
                 if ending:
-
-                    combinations.append(
-                        message + "\n\n" + ending
-                    )
-
+                    combinations.append(message + "\n\n" + ending)
         pool[category] = combinations
-
     return pool
 
 
@@ -401,42 +358,23 @@ MESSAGE_POOL = build_message_pool()
 # ============================================================
 
 def get_random_message(category: str) -> str:
-
     messages = MESSAGE_POOL.get(category)
-
     if not messages:
-
-        messages = MESSAGE_POOL.get(
-            "motivation",
-            []
-        )
-
+        messages = MESSAGE_POOL.get("motivation", [])
     if not messages:
-
         return "✨ ভালো থাকুন এবং সময়কে কাজে লাগান।"
 
-    history = _message_history.setdefault(
-        category,
-        []
-    )
-
-    available = [
-        message
-        for message in messages
-        if message not in history
-    ]
+    history = _message_history.setdefault(category, [])
+    available = [message for message in messages if message not in history]
 
     if not available:
-
         history.clear()
         available = messages
 
     message = random.choice(available)
-
     history.append(message)
 
     if len(history) > 50:
-
         del history[:-50]
 
     return message
@@ -456,7 +394,6 @@ BANGLA_WEEKDAYS = {
     6: "রবিবার",
 }
 
-
 BANGLA_MONTHS = {
     1: "জানুয়ারি",
     2: "ফেব্রুয়ারি",
@@ -474,83 +411,41 @@ BANGLA_MONTHS = {
 
 
 def to_bangla_digits(value) -> str:
-
-    translation = str.maketrans(
-        "0123456789",
-        "০১২৩৪৫৬৭৮৯"
-    )
-
-    return str(value).translate(
-        translation
-    )
+    translation = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
+    return str(value).translate(translation)
 
 
 def get_period(hour: int) -> str:
-
-    if hour == 0:
-
+    if hour == 0 or hour < 6:
         return "রাত"
-
-    if hour < 6:
-
-        return "রাত"
-
     if hour < 12:
-
         return "সকাল"
-
-    if hour == 12:
-
+    if hour == 12 or hour < 17:
         return "দুপুর"
-
-    if hour < 17:
-
-        return "দুপুর"
-
     if hour < 19:
-
         return "বিকেল"
-
     return "রাত"
 
 
 def format_bangla_time(now: datetime.datetime) -> str:
-
     hour_24 = now.hour
     minute = now.minute
 
     if hour_24 == 0:
-
         display_hour = 12
-
     elif hour_24 > 12:
-
         display_hour = hour_24 - 12
-
     else:
-
         display_hour = hour_24
 
     period = get_period(hour_24)
-
-    return (
-        f"{period} "
-        f"{to_bangla_digits(display_hour)}:"
-        f"{to_bangla_digits(f'{minute:02d}')} মিনিট"
-    )
+    return f"{period} {to_bangla_digits(display_hour)}:{to_bangla_digits(f'{minute:02d}')} মিনিট"
 
 
 def format_bangla_date(now: datetime.datetime) -> str:
-
     day = to_bangla_digits(now.day)
-
-    month = BANGLA_MONTHS.get(
-        now.month,
-        str(now.month)
-    )
-
+    month = BANGLA_MONTHS.get(now.month, str(now.month))
     year = to_bangla_digits(now.year)
-
     return f"{day} {month} {year}"
 
 
@@ -558,80 +453,33 @@ def format_bangla_date(now: datetime.datetime) -> str:
 # WEATHER TEMPERATURE
 # ============================================================
 
-async def get_temperature_for_city(
-    city: str
-) -> Optional[str]:
-
-    city = (
-        city
-        or "Dhaka"
-    ).strip()
-
+async def get_temperature_for_city(city: str) -> Optional[str]:
+    city = (city or "Dhaka").strip()
     cache_key = city.lower()
+    now = datetime.datetime.now(TZ)
+    hour_key = now.strftime("%Y-%m-%d-%H")
 
-    now = datetime.datetime.now(
-        TZ
-    )
-
-    hour_key = now.strftime(
-        "%Y-%m-%d-%H"
-    )
-
-    cached = _weather_cache.get(
-        cache_key
-    )
-
+    cached = _weather_cache.get(cache_key)
     if cached:
-
         cached_hour, cached_temp = cached
-
         if cached_hour == hour_key:
-
             return cached_temp
 
     try:
-
-        weather_text = await get_weather(
-            city
-        )
-
+        weather_text = await get_weather(city)
         if not weather_text:
-
             return None
 
-        # OpenWeather এবং wttr.in দুই ক্ষেত্রের
-        # return text থেকেই Celsius বের করা হবে।
-        match = re.search(
-            r"(-?\d+(?:\.\d+)?)\s*°C",
-            weather_text
-        )
-
+        match = re.search(r"(-?\d+(?:\.\d+)?)\s*°C", weather_text)
         if match:
-
             temp = match.group(1)
-
             if temp.endswith(".0"):
-
                 temp = temp[:-2]
-
-            temperature = (
-                f"{to_bangla_digits(temp)}°C"
-            )
-
-            _weather_cache[
-                cache_key
-            ] = (
-                hour_key,
-                temperature
-            )
-
+            temperature = f"{to_bangla_digits(temp)}°C"
+            _weather_cache[cache_key] = (hour_key, temperature)
             return temperature
-
     except Exception as e:
-
-        print(
-            f"[WEATHER] {city}: {e}"
-        )
+        print(f"[WEATHER] {city}: {e}")
 
     return None
 
@@ -640,64 +488,22 @@ async def get_temperature_for_city(
 # HOURLY INFORMATION MESSAGE
 # ============================================================
 
-async def build_hourly_message(
-    user
-) -> str:
-
-    city = (
-        user.city
-        or "Dhaka"
-    )
-
-    user_timezone = (
-        getattr(
-            user,
-            "timezone",
-            None
-        )
-        or DEFAULT_TIMEZONE
-    )
+async def build_hourly_message(user) -> str:
+    city = user.city or "Dhaka"
+    user_timezone = getattr(user, "timezone", None) or DEFAULT_TIMEZONE
 
     try:
-
-        user_tz = pytz.timezone(
-            user_timezone
-        )
-
+        user_tz = pytz.timezone(user_timezone)
     except Exception:
-
         user_tz = TZ
 
-    now = datetime.datetime.now(
-        user_tz
-    )
+    now = datetime.datetime.now(user_tz)
+    time_text = format_bangla_time(now)
+    date_text = format_bangla_date(now)
+    weekday_text = BANGLA_WEEKDAYS.get(now.weekday(), "")
+    temperature = await get_temperature_for_city(city)
 
-    time_text = format_bangla_time(
-        now
-    )
-
-    date_text = format_bangla_date(
-        now
-    )
-
-    weekday_text = BANGLA_WEEKDAYS.get(
-        now.weekday(),
-        ""
-    )
-
-    temperature = await get_temperature_for_city(
-        city
-    )
-
-    if temperature:
-
-        temperature_text = temperature
-
-    else:
-
-        temperature_text = (
-            "তথ্য পাওয়া যাচ্ছে না"
-        )
+    temperature_text = temperature if temperature else "তথ্য পাওয়া যাচ্ছে না"
 
     return (
         f"🕐 এখন সময়: {time_text}\n"
@@ -705,8 +511,7 @@ async def build_hourly_message(
         f"📆 বার: {weekday_text}\n"
         f"🌡️ তাপমাত্রা: {temperature_text}\n"
         f"📍 স্থান: {city}\n\n"
-        f"⏰ সময়ের মূল্য দিন এবং প্রয়োজনীয় কাজে "
-        f"মনোযোগ দিন।\n"
+        f"⏰ সময়ের মূল্য দিন এবং প্রয়োজনীয় কাজে মনোযোগ দিন।\n"
         f"🌿 নিজের যত্ন নিন এবং ভালো থাকুন।"
     )
 
@@ -723,47 +528,25 @@ PRAYER_NAMES = {
     "Isha": "এশা",
 }
 
-
 PRAYER_BENEFITS = {
-    "Fajr":
-        "দিনের শুরু আল্লাহর ইবাদত দিয়ে করার সুন্দর সুযোগ।",
-
-    "Dhuhr":
-        "ব্যস্ততার মাঝেও আল্লাহকে স্মরণ করার সময়।",
-
-    "Asr":
-        "দিনের ব্যস্ততার মাঝে নামাজের মাধ্যমে নিজেকে স্মরণ করিয়ে দিন।",
-
-    "Maghrib":
-        "সন্ধ্যার শুরুতে আল্লাহর ইবাদতের সুন্দর সময়।",
-
-    "Isha":
-        "দিনের শেষ নামাজ আদায় করে শান্ত মনে বিশ্রামের প্রস্তুতি নিন।",
+    "Fajr": "দিনের শুরু আল্লাহর ইবাদত দিয়ে করার সুন্দর সুযোগ।",
+    "Dhuhr": "ব্যস্ততার মাঝেও আল্লাহকে স্মরণ করার সময়।",
+    "Asr": "দিনের ব্যস্ততার মাঝে নামাজের মাধ্যমে নিজেকে স্মরণ করিয়ে দিন।",
+    "Maghrib": "সন্ধ্যার শুরুতে আল্লাহর ইবাদতের সুন্দর সময়।",
+    "Isha": "দিনের শেষ নামাজ আদায় করে শান্ত মনে বিশ্রামের প্রস্তুতি নিন।",
 }
 
 
-def make_prayer_message(
-    prayer_key: str,
-    prayer_time: str
-) -> str:
-
-    name = PRAYER_NAMES.get(
-        prayer_key,
-        prayer_key
-    )
-
-    benefit = PRAYER_BENEFITS.get(
-        prayer_key,
-        "নামাজ মুমিনের জন্য অত্যন্ত গুরুত্বপূর্ণ ইবাদত।"
-    )
+def make_prayer_message(prayer_key: str, prayer_time: str) -> str:
+    name = PRAYER_NAMES.get(prayer_key, prayer_key)
+    benefit = PRAYER_BENEFITS.get(prayer_key, "নামাজ মুমিনের জন্য অত্যন্ত গুরুত্বপূর্ণ ইবাদত।")
 
     return (
         f"🕌 {name} নামাজের সময় হয়েছে!\n\n"
         f"⏰ সময়: {prayer_time}\n\n"
         f"🤲 দয়া করে নামাজ আদায় করুন।\n\n"
         f"🌿 গুরুত্ব: {benefit}\n\n"
-        f"❤️ আল্লাহ আমাদের সবাইকে নামাজ কায়েম "
-        f"করার তাওফিক দিন। আমিন।"
+        f"❤️ আল্লাহ আমাদের সবাইকে নামাজ কায়েম করার তাওফিক দিন। আমিন।"
     )
 
 
@@ -772,13 +555,8 @@ def make_prayer_message(
 # ============================================================
 
 async def get_all_users():
-
     async with AsyncSessionLocal() as session:
-
-        result = await session.execute(
-            select(User)
-        )
-
+        result = await session.execute(select(User))
         return result.scalars().all()
 
 
@@ -786,29 +564,16 @@ async def get_all_users():
 # SAFE SEND
 # ============================================================
 
-async def safe_send(
-    bot: Bot,
-    user_id: int,
-    message: str
-):
-
+async def safe_send(bot: Bot, user_id: int, message: str):
     try:
-
         await bot.send_message(
             chat_id=user_id,
             text=message,
             disable_web_page_preview=True
         )
-
         return True
-
     except Exception as e:
-
-        print(
-            f"[REMINDER] Failed to send "
-            f"to {user_id}: {e}"
-        )
-
+        print(f"[REMINDER] Failed to send to {user_id}: {e}")
         return False
 
 
@@ -819,48 +584,20 @@ async def safe_send(
 _prayer_cache = {}
 
 
-async def get_cached_prayer_times(
-    city: str
-):
-
-    today = datetime.datetime.now(
-        TZ
-    ).strftime(
-        "%Y-%m-%d"
-    )
-
-    cache_key = (
-        f"{city}:{today}"
-    )
+async def get_cached_prayer_times(city: str):
+    today = datetime.datetime.now(TZ).strftime("%Y-%m-%d")
+    cache_key = f"{city}:{today}"
 
     if cache_key in _prayer_cache:
-
-        return _prayer_cache[
-            cache_key
-        ]
+        return _prayer_cache[cache_key]
 
     try:
-
-        prayer_times = (
-            await get_prayer_times(
-                city=city,
-                country="Bangladesh"
-            )
-        )
-
+        prayer_times = await get_prayer_times(city=city, country="Bangladesh")
         if prayer_times:
-
-            _prayer_cache[
-                cache_key
-            ] = prayer_times
-
+            _prayer_cache[cache_key] = prayer_times
             return prayer_times
-
     except Exception as e:
-
-        print(
-            f"[PRAYER API] {city}: {e}"
-        )
+        print(f"[PRAYER API] {city}: {e}")
 
     return None
 
@@ -869,127 +606,53 @@ async def get_cached_prayer_times(
 # PRAYER REMINDERS
 # ============================================================
 
-async def send_prayer_reminders(
-    bot: Bot
-):
-
+async def send_prayer_reminders(bot: Bot):
     users = await get_all_users()
 
     for user in users:
-
         try:
-
-            if not user.prayer_notify:
-
+            if not getattr(user, "prayer_notify", True):
                 continue
 
-            city = (
-                user.city
-                or "Dhaka"
-            )
-
-            user_timezone = (
-                getattr(
-                    user,
-                    "timezone",
-                    None
-                )
-                or DEFAULT_TIMEZONE
-            )
+            city = user.city or "Dhaka"
+            user_timezone = getattr(user, "timezone", None) or DEFAULT_TIMEZONE
 
             try:
-
-                user_tz = pytz.timezone(
-                    user_timezone
-                )
-
+                user_tz = pytz.timezone(user_timezone)
             except Exception:
-
                 user_tz = TZ
 
-            now = datetime.datetime.now(
-                user_tz
-            )
+            now = datetime.datetime.now(user_tz)
+            current_time = now.strftime("%H:%M")
+            today = now.strftime("%Y-%m-%d")
 
-            current_time = now.strftime(
-                "%H:%M"
-            )
-
-            today = now.strftime(
-                "%Y-%m-%d"
-            )
-
-            prayer_times = (
-                await get_cached_prayer_times(
-                    city
-                )
-            )
-
+            prayer_times = await get_cached_prayer_times(city)
             if not prayer_times:
-
                 continue
 
-            for prayer_key in (
-                "Fajr",
-                "Dhuhr",
-                "Asr",
-                "Maghrib",
-                "Isha"
-            ):
-
-                api_time = prayer_times.get(
-                    prayer_key
-                )
-
+            for prayer_key in ("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"):
+                api_time = prayer_times.get(prayer_key)
                 if not api_time:
-
                     continue
 
-                prayer_time = str(
-                    api_time
-                )[:5]
-
+                prayer_time = str(api_time)[:5]
                 if prayer_time != current_time:
-
                     continue
 
-                dedupe_key = (
-                    user.user_id,
-                    today,
-                    prayer_key
-                )
-
+                dedupe_key = (user.user_id, today, prayer_key)
                 if dedupe_key in _last_prayer_sent:
-
                     continue
 
-                message = make_prayer_message(
-                    prayer_key,
-                    prayer_time
-                )
-
-                success = await safe_send(
-                    bot,
-                    user.user_id,
-                    message
-                )
+                message = make_prayer_message(prayer_key, prayer_time)
+                success = await safe_send(bot, user.user_id, message)
 
                 if success:
+                    _last_prayer_sent.add(dedupe_key)
 
-                    _last_prayer_sent.add(
-                        dedupe_key
-                    )
-
-                await asyncio.sleep(
-                    0.03
-                )
+                await asyncio.sleep(0.03)
 
         except Exception as e:
-
-            print(
-                f"[PRAYER] User "
-                f"{user.user_id} error: {e}"
-            )
+            print(f"[PRAYER] User {user.user_id} error: {e}")
 
 
 # ============================================================
@@ -997,60 +660,15 @@ async def send_prayer_reminders(
 # ============================================================
 
 DAILY_SCHEDULE = [
-
-    (
-        "06:30",
-        "wake",
-        "wake_notify"
-    ),
-
-    (
-        "08:00",
-        "breakfast",
-        "food_notify"
-    ),
-
-    (
-        "10:00",
-        "study",
-        "study_notify"
-    ),
-
-    (
-        "12:30",
-        "lunch",
-        "food_notify"
-    ),
-
-    (
-        "14:30",
-        "bath",
-        "custom_notify"
-    ),
-
-    (
-        "16:30",
-        "sports",
-        "play_notify"
-    ),
-
-    (
-        "18:30",
-        "evening",
-        "custom_notify"
-    ),
-
-    (
-        "20:30",
-        "dinner",
-        "food_notify"
-    ),
-
-    (
-        "22:30",
-        "sleep",
-        "sleep_notify"
-    ),
+    ("06:30", "wake", "wake_notify"),
+    ("08:00", "breakfast", "food_notify"),
+    ("10:00", "study", "study_notify"),
+    ("12:30", "lunch", "food_notify"),
+    ("14:30", "bath", "custom_notify"),
+    ("16:30", "sports", "play_notify"),
+    ("18:30", "evening", "custom_notify"),
+    ("20:30", "dinner", "food_notify"),
+    ("22:30", "sleep", "sleep_notify"),
 ]
 
 
@@ -1059,48 +677,13 @@ DAILY_SCHEDULE = [
 # ============================================================
 
 EXTRA_SCHEDULE = [
-
-    (
-        "07:30",
-        "water",
-        "custom_notify"
-    ),
-
-    (
-        "09:30",
-        "habit",
-        "custom_notify"
-    ),
-
-    (
-        "11:30",
-        "water",
-        "custom_notify"
-    ),
-
-    (
-        "15:30",
-        "water",
-        "custom_notify"
-    ),
-
-    (
-        "17:30",
-        "motivation",
-        "custom_notify"
-    ),
-
-    (
-        "19:30",
-        "family",
-        "custom_notify"
-    ),
-
-    (
-        "21:30",
-        "islamic",
-        "custom_notify"
-    ),
+    ("07:30", "water", "custom_notify"),
+    ("09:30", "habit", "custom_notify"),
+    ("11:30", "water", "custom_notify"),
+    ("15:30", "water", "custom_notify"),
+    ("17:30", "motivation", "custom_notify"),
+    ("19:30", "family", "custom_notify"),
+    ("21:30", "islamic", "custom_notify"),
 ]
 
 
@@ -1108,287 +691,127 @@ EXTRA_SCHEDULE = [
 # DAILY REMINDERS
 # ============================================================
 
-async def send_daily_reminders(
-    bot: Bot
-):
-
+async def send_daily_reminders(bot: Bot):
     users = await get_all_users()
 
     for user in users:
-
         try:
-
-            user_timezone = (
-                getattr(
-                    user,
-                    "timezone",
-                    None
-                )
-                or DEFAULT_TIMEZONE
-            )
+            user_timezone = getattr(user, "timezone", None) or DEFAULT_TIMEZONE
 
             try:
-
-                user_tz = pytz.timezone(
-                    user_timezone
-                )
-
+                user_tz = pytz.timezone(user_timezone)
             except Exception:
-
                 user_tz = TZ
 
-            now = datetime.datetime.now(
-                user_tz
-            )
+            now = datetime.datetime.now(user_tz)
+            current_time = now.strftime("%H:%M")
+            today = now.strftime("%Y-%m-%d")
 
-            current_time = now.strftime(
-                "%H:%M"
-            )
-
-            today = now.strftime(
-                "%Y-%m-%d"
-            )
-
-            for (
-                schedule_time,
-                category,
-                setting
-            ) in DAILY_SCHEDULE:
-
+            for schedule_time, category, setting in DAILY_SCHEDULE:
                 if schedule_time != current_time:
-
                     continue
 
-                if not getattr(
-                    user,
-                    setting,
-                    True
-                ):
-
+                if not getattr(user, setting, True):
                     continue
 
-                dedupe_key = (
-                    user.user_id,
-                    today,
-                    schedule_time,
-                    category
-                )
-
+                dedupe_key = (user.user_id, today, schedule_time, category)
                 if dedupe_key in _last_daily_sent:
-
                     continue
 
-                message = get_random_message(
-                    category
-                )
-
-                success = await safe_send(
-                    bot,
-                    user.user_id,
-                    message
-                )
+                message = get_random_message(category)
+                success = await safe_send(bot, user.user_id, message)
 
                 if success:
+                    _last_daily_sent.add(dedupe_key)
 
-                    _last_daily_sent.add(
-                        dedupe_key
-                    )
-
-                await asyncio.sleep(
-                    0.03
-                )
+                await asyncio.sleep(0.03)
 
         except Exception as e:
-
-            print(
-                f"[DAILY] User "
-                f"{user.user_id} error: {e}"
-            )
+            print(f"[DAILY] User {user.user_id} error: {e}")
 
 
 # ============================================================
 # EXTRA REMINDERS
 # ============================================================
 
-async def send_extra_reminders(
-    bot: Bot
-):
-
+async def send_extra_reminders(bot: Bot):
     users = await get_all_users()
 
     for user in users:
-
         try:
-
-            user_timezone = (
-                getattr(
-                    user,
-                    "timezone",
-                    None
-                )
-                or DEFAULT_TIMEZONE
-            )
+            user_timezone = getattr(user, "timezone", None) or DEFAULT_TIMEZONE
 
             try:
-
-                user_tz = pytz.timezone(
-                    user_timezone
-                )
-
+                user_tz = pytz.timezone(user_timezone)
             except Exception:
-
                 user_tz = TZ
 
-            now = datetime.datetime.now(
-                user_tz
-            )
+            now = datetime.datetime.now(user_tz)
+            current_time = now.strftime("%H:%M")
+            today = now.strftime("%Y-%m-%d")
 
-            current_time = now.strftime(
-                "%H:%M"
-            )
-
-            today = now.strftime(
-                "%Y-%m-%d"
-            )
-
-            for (
-                schedule_time,
-                category,
-                setting
-            ) in EXTRA_SCHEDULE:
-
+            for schedule_time, category, setting in EXTRA_SCHEDULE:
                 if schedule_time != current_time:
-
                     continue
 
-                if not getattr(
-                    user,
-                    setting,
-                    True
-                ):
-
+                if not getattr(user, setting, True):
                     continue
 
-                dedupe_key = (
-                    user.user_id,
-                    today,
-                    schedule_time,
-                    category
-                )
-
+                dedupe_key = (user.user_id, today, schedule_time, category)
                 if dedupe_key in _last_extra_sent:
-
                     continue
 
-                message = get_random_message(
-                    category
-                )
-
-                success = await safe_send(
-                    bot,
-                    user.user_id,
-                    message
-                )
+                message = get_random_message(category)
+                success = await safe_send(bot, user.user_id, message)
 
                 if success:
+                    _last_extra_sent.add(dedupe_key)
 
-                    _last_extra_sent.add(
-                        dedupe_key
-                    )
-
-                await asyncio.sleep(
-                    0.03
-                )
+                await asyncio.sleep(0.03)
 
         except Exception as e:
-
-            print(
-                f"[EXTRA] User "
-                f"{user.user_id} error: {e}"
-            )
+            print(f"[EXTRA] User {user.user_id} error: {e}")
 
 
 # ============================================================
 # HOURLY TIME REMINDER
 # ============================================================
 
-async def send_hourly_time(
-    bot: Bot
-):
-
+async def send_hourly_time(bot: Bot):
     users = await get_all_users()
 
     for user in users:
-
         try:
-
-            if not user.hourly_notify:
-
+            if not getattr(user, "hourly_notify", True):
                 continue
 
-            user_timezone = (
-                getattr(
-                    user,
-                    "timezone",
-                    None
-                )
-                or DEFAULT_TIMEZONE
-            )
+            user_timezone = getattr(user, "timezone", None) or DEFAULT_TIMEZONE
 
             try:
-
-                user_tz = pytz.timezone(
-                    user_timezone
-                )
-
+                user_tz = pytz.timezone(user_timezone)
             except Exception:
-
                 user_tz = TZ
 
-            now = datetime.datetime.now(
-                user_tz
-            )
+            now = datetime.datetime.now(user_tz)
 
-            # শুধুমাত্র প্রতি ঘণ্টার শুরুতে পাঠাবে।
+            # শুধুমাত্র প্রতি ঘণ্টার শুরুতে (০ মিনিটে) পাঠাবে।
             if now.minute != 0:
-
                 continue
 
-            hour_key = (
-                f"{user.user_id}:"
-                f"{now.strftime('%Y-%m-%d-%H')}"
-            )
-
+            hour_key = f"{user.user_id}:{now.strftime('%Y-%m-%d-%H')}"
             if hour_key in _last_hour_sent:
-
                 continue
 
-            message = await build_hourly_message(
-                user
-            )
-
-            success = await safe_send(
-                bot,
-                user.user_id,
-                message
-            )
+            message = await build_hourly_message(user)
+            success = await safe_send(bot, user.user_id, message)
 
             if success:
+                _last_hour_sent.add(hour_key)
 
-                _last_hour_sent.add(
-                    hour_key
-                )
-
-            await asyncio.sleep(
-                0.03
-            )
+            await asyncio.sleep(0.03)
 
         except Exception as e:
-
-            print(
-                f"[HOURLY] User "
-                f"{user.user_id} error: {e}"
-            )
+            print(f"[HOURLY] User {user.user_id} error: {e}")
 
 
 # ============================================================
@@ -1396,47 +819,19 @@ async def send_hourly_time(
 # ============================================================
 
 def cleanup_memory():
-
-    if len(
-        _last_prayer_sent
-    ) > 5000:
-
+    if len(_last_prayer_sent) > 5000:
         _last_prayer_sent.clear()
-
-    if len(
-        _last_daily_sent
-    ) > 5000:
-
+    if len(_last_daily_sent) > 5000:
         _last_daily_sent.clear()
-
-    if len(
-        _last_extra_sent
-    ) > 5000:
-
+    if len(_last_extra_sent) > 5000:
         _last_extra_sent.clear()
-
-    if len(
-        _last_hour_sent
-    ) > 5000:
-
+    if len(_last_hour_sent) > 5000:
         _last_hour_sent.clear()
-
-    if len(
-        _message_history
-    ) > 100:
-
+    if len(_message_history) > 100:
         _message_history.clear()
-
-    if len(
-        _weather_cache
-    ) > 500:
-
+    if len(_weather_cache) > 500:
         _weather_cache.clear()
-
-    if len(
-        _prayer_cache
-    ) > 500:
-
+    if len(_prayer_cache) > 500:
         _prayer_cache.clear()
 
 
@@ -1444,147 +839,57 @@ def cleanup_memory():
 # REMINDER LOOP
 # ============================================================
 
-async def reminder_loop(
-    application
-):
-
+async def reminder_loop(application):
     global _scheduler_running
 
     try:
-
-        # application পুরোটা নেওয়া হচ্ছে।
-        # application.bot শুধু এখানে access হবে,
-        # scheduler task তৈরি হওয়ার পরে।
-
         bot = application.bot
-
         if not bot.initialized:
-
             await bot.initialize()
 
-        print(
-            "[REMINDER] Telegram bot initialized."
-        )
-
+        print("[REMINDER] Telegram bot initialized.")
     except Exception as e:
-
-        print(
-            f"[REMINDER] Bot initialization failed: {e}"
-        )
-
+        print(f"[REMINDER] Bot initialization failed: {e}")
         _scheduler_running = False
-
         return
 
-    print(
-        "======================================"
-    )
-
-    print(
-        " AUTOMATIC REMINDER SYSTEM STARTED"
-    )
-
-    print(
-        "======================================"
-    )
-
-    print(
-        "[REMINDER] Database users enabled."
-    )
-
-    print(
-        "[REMINDER] Offline users supported."
-    )
-
-    print(
-        "[REMINDER] 500+ message variations enabled."
-    )
-
-    print(
-        "[REMINDER] Prayer reminders enabled."
-    )
-
-    print(
-        "[REMINDER] Hourly time/date/weather reminders enabled."
-    )
+    print("======================================")
+    print(" AUTOMATIC REMINDER SYSTEM STARTED")
+    print("======================================")
 
     while _scheduler_running:
-
         try:
-
-            await send_hourly_time(
-                bot
-            )
-
-            await send_prayer_reminders(
-                bot
-            )
-
-            await send_daily_reminders(
-                bot
-            )
-
-            await send_extra_reminders(
-                bot
-            )
-
+            await send_hourly_time(bot)
+            await send_prayer_reminders(bot)
+            await send_daily_reminders(bot)
+            await send_extra_reminders(bot)
             cleanup_memory()
 
         except asyncio.CancelledError:
-
-            print(
-                "[REMINDER] Scheduler cancelled."
-            )
-
+            print("[REMINDER] Scheduler cancelled.")
             break
-
         except Exception as e:
+            print(f"[REMINDER] Loop error: {e}")
 
-            print(
-                f"[REMINDER] Loop error: {e}"
-            )
-
-        await asyncio.sleep(
-            20
-        )
+        # আগের ২০ সেকেন্ডের জায়গায় ৫ সেকেন্ড করা হলো যাতে ১ ঘণ্টার জিরো মিনিট মিস না হয়
+        await asyncio.sleep(5)
 
 
 # ============================================================
 # START SCHEDULER
 # ============================================================
 
-def start_scheduler(
-    application
-):
-
+def start_scheduler(application):
     global _scheduler_task
     global _scheduler_running
 
-    if (
-        _scheduler_task is not None
-        and not _scheduler_task.done()
-    ):
-
-        print(
-            "[REMINDER] Scheduler already running."
-        )
-
+    if _scheduler_task is not None and not _scheduler_task.done():
+        print("[REMINDER] Scheduler already running.")
         return
 
     _scheduler_running = True
-
-    # এখানে application.bot access করা হচ্ছে না।
-    # পুরো application task-এর মধ্যে পাঠানো হচ্ছে।
-
-    _scheduler_task = asyncio.create_task(
-        reminder_loop(
-            application
-        )
-    )
-
-    print(
-        "[REMINDER] Scheduler task created."
-    )
+    _scheduler_task = asyncio.create_task(reminder_loop(application))
+    print("[REMINDER] Scheduler task created.")
 
 
 # ============================================================
@@ -1592,138 +897,67 @@ def start_scheduler(
 # ============================================================
 
 async def stop_scheduler():
-
     global _scheduler_task
     global _scheduler_running
 
     _scheduler_running = False
 
     if _scheduler_task is not None:
-
         if not _scheduler_task.done():
-
             _scheduler_task.cancel()
-
             try:
-
                 await _scheduler_task
-
             except asyncio.CancelledError:
-
                 pass
-
             except Exception as e:
-
-                print(
-                    f"[REMINDER] Stop error: {e}"
-                )
+                print(f"[REMINDER] Stop error: {e}")
 
     _scheduler_task = None
-
-    print(
-        "[REMINDER] Scheduler stopped."
-    )
+    print("[REMINDER] Scheduler stopped.")
 
 
 # ============================================================
 # RELOAD SCHEDULER
 # ============================================================
 
-async def reload_reminders(
-    application_or_bot
-):
-
+async def reload_reminders(application_or_bot):
     global _scheduler_task
     global _scheduler_running
 
-    # --------------------------------------------------------
-    # পুরোনো scheduler বন্ধ
-    # --------------------------------------------------------
-
     if _scheduler_task is not None:
-
         if not _scheduler_task.done():
-
             _scheduler_running = False
-
             _scheduler_task.cancel()
-
             try:
-
                 await _scheduler_task
-
             except asyncio.CancelledError:
-
                 pass
-
             except Exception as e:
-
-                print(
-                    f"[REMINDER] Reload stop error: {e}"
-                )
+                print(f"[REMINDER] Reload stop error: {e}")
 
     _scheduler_task = None
-
-    # --------------------------------------------------------
-    # নতুন scheduler
-    # --------------------------------------------------------
-
     _scheduler_running = True
 
-    # bot.py থেকে application পাঠালে সেটাই ব্যবহার হবে।
-    #
-    # handlers.py থেকে context.bot পাঠানো হলেও
-    # compatibility রাখা হয়েছে।
-
-    if hasattr(
-        application_or_bot,
-        "bot"
-    ):
-
+    if hasattr(application_or_bot, "bot"):
         application = application_or_bot
-
     else:
-
-        # পুরোনো handlers.py যদি context.bot পাঠায়,
-        # তাহলে একটি wrapper object তৈরি করা হবে।
-
         class ApplicationWrapper:
-
-            def __init__(
-                self,
-                bot
-            ):
-
+            def __init__(self, bot):
                 self.bot = bot
+        application = ApplicationWrapper(application_or_bot)
 
-        application = ApplicationWrapper(
-            application_or_bot
-        )
-
-    _scheduler_task = asyncio.create_task(
-        reminder_loop(
-            application
-        )
-    )
-
-    print(
-        "[REMINDER] Scheduler reloaded."
-    )
+    _scheduler_task = asyncio.create_task(reminder_loop(application))
+    print("[REMINDER] Scheduler reloaded.")
 
 
 # ============================================================
 # TEST REMINDER
 # ============================================================
 
-async def test_reminder(
-    bot: Bot,
-    user_id: int
-):
-
+async def test_reminder(bot: Bot, user_id: int):
     message = (
         "🔔 Automatic Reminder Test\n\n"
-        "✅ আপনার Automatic Reminder System "
-        "কাজ করছে।\n\n"
+        "✅ আপনার Automatic Reminder System কাজ করছে।\n\n"
         "🕌 Prayer Reminder\n"
         "🕐 Hourly Time Reminder\n"
         "📅 Date Reminder\n"
@@ -1744,17 +978,6 @@ async def test_reminder(
         "❤️ Family Reminder\n"
         "💪 Motivation Reminder\n"
         "☪️ Islamic Reminder\n\n"
-        "⏰ নির্ধারিত সময়ে বট নিজে থেকেই "
-        "মেসেজ পাঠাবে।"
+        "⏰ নির্ধারিত সময়ে বট নিজে থেকেই মেসেজ পাঠাবে।"
     )
-
-    return await safe_send(
-        bot,
-        user_id,
-        message
-    )
-
-
-# ============================================================
-# END OF FILE
-# ============================================================
+    return await safe_send(bot, user_id, message)
