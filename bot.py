@@ -10,6 +10,9 @@ from telegram.ext import (
     filters
 )
 
+# HTTPXRequest যুক্ত করা হয়েছে নেটওয়ার্ক রিকানেক্ট এবং টাইমআউট হ্যান্ডেল করার জন্য
+from telegram.request import HTTPXRequest
+
 from config import (
     BOT_TOKEN,
     PORT,
@@ -1487,12 +1490,21 @@ async def main():
 
 
     # =====================================================
-    # TELEGRAM APPLICATION
+    # TELEGRAM APPLICATION (WITH AUTO-RECONNECT CONFIG)
     # =====================================================
+
+    # Wi-Fi / Network drop হ্যান্ডেল করার জন্য HTTPXRequest সেটিংস
+    request_config = HTTPXRequest(
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=30.0
+    )
 
     application = (
         ApplicationBuilder()
         .token(BOT_TOKEN)
+        .request(request_config)  # রিকানেক্ট এবং টাইমআউট কনফিগারেশন যোগ করা হয়েছে
         .build()
     )
 
@@ -1685,8 +1697,11 @@ async def main():
     await application.start()
 
 
+    # Polling টাইমআউট ৩০ সেকেন্ড সেট করে দেওয়া হলো যাতে কানেকশন ড্রপ হলেও রি-ট্রাই করে
     await application.updater.start_polling(
-        drop_pending_updates=True
+        drop_pending_updates=True,
+        timeout=30,
+        poll_interval=2.0
     )
 
 
@@ -1698,15 +1713,6 @@ async def main():
     # =====================================================
     # REMINDER SCHEDULER
     # =====================================================
-    #
-    # IMPORTANT:
-    # application.bot এখানে সরাসরি দেওয়া হবে না।
-    #
-    # Scheduler-কে পুরো application দেওয়া হচ্ছে।
-    #
-    # Telegram application initialize/start হওয়ার পরে
-    # scheduler চালু করা হচ্ছে।
-    #
 
     start_scheduler(
         application
