@@ -34,15 +34,10 @@ from database import (
 )
 
 from categories import get_category_keyboard
-
 from smart_conv import check_smart_reply
-
 from ai_engine import get_ai_response
-
 from search_engine import search_media
-
 from reminder import reload_reminders
-
 from ad_system import attach_ad_to_keyboard
 
 
@@ -51,14 +46,10 @@ from ad_system import attach_ad_to_keyboard
 # ============================================================
 
 ADMIN_SOCIAL_LINKS = {
-    "facebook":
-        "https://www.facebook.com/share/19PVrFHGk2/",
-    "tiktok":
-        "https://www.tiktok.com/@tomalchowdhury20",
-    "whatsapp":
-        "https://wa.me/+8801311328266",
-    "telegram":
-        "https://t.me/tomalchowdhury2"
+    "facebook": "https://www.facebook.com/share/19PVrFHGk2/",
+    "tiktok": "https://www.tiktok.com/@tomalchowdhury20",
+    "whatsapp": "https://wa.me/+8801311328266",
+    "telegram": "https://t.me/tomalchowdhury2"
 }
 
 
@@ -74,35 +65,9 @@ admin_upload_sessions = {}
 # ============================================================
 
 CONTENT_REQUEST_WORDS = {
-    "দাও",
-    "দে",
-    "দেন",
-    "দেও",
-    "দিয়েন",
-    "দিন",
-    "পাঠাও",
-    "পাঠান",
-    "দেখাও",
-    "দেখান",
-    "চাই",
-    "চাইছি",
-    "খুঁজছি",
-    "খুঁজে",
-    "dao",
-    "deo",
-    "de",
-    "den",
-    "din",
-    "pathao",
-    "pathan",
-    "give",
-    "send",
-    "show",
-    "please",
-    "want",
-    "need",
-    "find",
-    "search"
+    "দাও", "দে", "দেন", "দেও", "দিয়েন", "দিন", "পাঠাও", "পাঠান", "দেখাও", "দেখান",
+    "চাই", "চাইছি", "খুঁজছি", "খুঁজে", "dao", "deo", "de", "den", "din", "pathao",
+    "pathan", "give", "send", "show", "want", "need", "find", "search"
 }
 
 
@@ -111,30 +76,12 @@ CONTENT_REQUEST_WORDS = {
 # ============================================================
 
 def normalize_user_query(text: str):
-
     if not text:
         return ""
-
-    text = unicodedata.normalize(
-        "NFKC",
-        str(text)
-    )
-
+    text = unicodedata.normalize("NFKC", str(text))
     text = text.lower().strip()
-
-    text = re.sub(
-        r"[^\w\u0980-\u09FF]+",
-        " ",
-        text,
-        flags=re.UNICODE
-    )
-
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    )
-
+    text = re.sub(r"[^\w\u0980-\u09FF]+", " ", text, flags=re.UNICODE)
+    text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
@@ -143,61 +90,25 @@ def normalize_user_query(text: str):
 # ============================================================
 
 def detect_admin_social_request(text: str):
-
     if not text:
         return None
-
     q = normalize_user_query(text)
-
     if not q:
         return None
 
     words = set(q.split())
-
-    admin_words = {
-        "admin",
-        "এডমিন",
-        "অ্যাডমিন",
-        "এডমিনের",
-        "অ্যাডমিনের",
-        "এডমিনকে",
-        "অ্যাডমিনকে",
-        "বস",
-        "boss"
-    }
+    admin_words = {"admin", "এডমিন", "অ্যাডমিন", "এডমিনের", "অ্যাডমিনের", "এডমিনকে", "অ্যাডমিনকে", "বস", "boss"}
 
     if not words.intersection(admin_words):
         return None
 
-    if words.intersection({
-        "facebook",
-        "ফেসবুক"
-    }):
+    if words.intersection({"facebook", "ফেসবুক"}):
         return "facebook"
-
-    if (
-        words.intersection({
-            "tiktok",
-            "টিকটক"
-        })
-        or "tik tok" in q
-    ):
+    if words.intersection({"tiktok", "টিকটক"}) or "tik tok" in q:
         return "tiktok"
-
-    if words.intersection({
-        "whatsapp",
-        "whatapp",
-        "হোয়াটসঅ্যাপ",
-        "হোয়াটসঅ্যাপ",
-        "হোয়াটসাপ",
-        "হোয়াটসাপ"
-    }):
+    if words.intersection({"whatsapp", "whatapp", "হোয়াটসঅ্যাপ", "হোয়াটসঅ্যাপ", "হোয়াটসাপ", "হোয়াটসাপ"}):
         return "whatsapp"
-
-    if words.intersection({
-        "telegram",
-        "টেলিগ্রাম"
-    }):
+    if words.intersection({"telegram", "টেলিগ্রাম"}):
         return "telegram"
 
     return None
@@ -207,259 +118,129 @@ def detect_admin_social_request(text: str):
 # SEND ADMIN SOCIAL LINK
 # ============================================================
 
-async def send_admin_social_link(
-    update,
-    context,
-    social_type
-):
-
-    link = ADMIN_SOCIAL_LINKS.get(
-        social_type
-    )
-
+async def send_admin_social_link(update, context, social_type):
+    link = ADMIN_SOCIAL_LINKS.get(social_type)
     if not link:
         return False
 
-    names = {
-        "facebook": "Facebook",
-        "tiktok": "TikTok",
-        "whatsapp": "WhatsApp",
-        "telegram": "Telegram"
-    }
+    names = {"facebook": "Facebook", "tiktok": "TikTok", "whatsapp": "WhatsApp", "telegram": "Telegram"}
+    emojis = {"facebook": "📘", "tiktok": "🎵", "whatsapp": "💬", "telegram": "✈️"}
 
-    emojis = {
-        "facebook": "📘",
-        "tiktok": "🎵",
-        "whatsapp": "💬",
-        "telegram": "✈️"
-    }
+    name = names.get(social_type, "Social")
+    emoji = emojis.get(social_type, "🔗")
 
-    name = names.get(
-        social_type,
-        "Social"
-    )
-
-    emoji = emojis.get(
-        social_type,
-        "🔗"
-    )
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                f"{emoji} Admin {name}",
-                url=link
-            )
-        ]
-    ])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{emoji} Admin {name}", url=link)]])
 
     await update.message.reply_text(
-        f"{emoji} *Admin {name}*\n\n"
-        f"নিচের বাটনে ক্লিক করে Admin-এর "
-        f"{name} প্রোফাইলে যান: 👇",
+        f"{emoji} *Admin {name}*\n\nনিচের বাটনে ক্লিক করে Admin-এর {name} প্রোফাইলে যান: 👇",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
-
     return True
 
 
 # ============================================================
-# CONTENT REQUEST DETECTION
+# CONTENT REQUEST DETECTION (STRICTER)
 # ============================================================
 
 def looks_like_content_request(text: str):
-
     q = normalize_user_query(text)
-
     if not q:
         return False
 
     words = set(q.split())
 
-    if words.intersection(
-        CONTENT_REQUEST_WORDS
-    ):
-        return True
-
     content_words = {
-        "ভিডিও",
-        "video",
-        "videos",
-        "গান",
-        "gan",
-        "song",
-        "songs",
-        "music",
-        "মুভি",
-        "movie",
-        "movies",
-        "সিনেমা",
-        "cinema",
-        "film",
-        "films",
-        "নাটক",
-        "natok",
-        "drama",
-        "telefilm",
-        "ওয়াজ",
-        "ওয়াজ",
-        "waz",
-        "waaz"
+        "ভিডিও", "video", "videos", "গান", "gan", "song", "songs", "music",
+        "মুভি", "movie", "movies", "সিনেমা", "cinema", "film", "films",
+        "নাটক", "natok", "drama", "telefilm", "ওয়াজ", "ওয়াজ", "waz", "waaz"
     }
 
-    return bool(
-        words.intersection(
-            content_words
-        )
-    )
+    # কন্টেন্ট শব্দ এবং চাওয়া সংক্রান্ত শব্দ দুটোই থাকলে কন্টেন্ট রিকোয়েস্ট ধরবে
+    has_content_word = bool(words.intersection(content_words))
+    has_request_word = bool(words.intersection(CONTENT_REQUEST_WORDS))
+
+    if has_content_word and has_request_word:
+        return True
+
+    return False
 
 
 # ============================================================
 # START HANDLER
 # ============================================================
 
-async def start_handler(
-    update,
-    context
-):
-
+async def start_handler(update, context):
     user = update.effective_user
-
-    await get_or_create_user(
-        user.id,
-        user.username,
-        user.first_name,
-        user.last_name
-    )
+    await get_or_create_user(user.id, user.username, user.first_name, user.last_name)
 
     keyboard = [
         [
-            InlineKeyboardButton(
-                "🤖 AI Chat",
-                callback_data="btn_ai_help"
-            ),
-            InlineKeyboardButton(
-                "🎬 Content",
-                callback_data="btn_content_help"
-            )
+            InlineKeyboardButton("🤖 AI Chat", callback_data="btn_ai_help"),
+            InlineKeyboardButton("🎬 Content", callback_data="btn_content_help")
         ],
         [
-            InlineKeyboardButton(
-                "⏰ Reminder",
-                callback_data="btn_reminder_menu"
-            ),
-            InlineKeyboardButton(
-                "🕌 Prayer Time",
-                callback_data="btn_prayer"
-            )
+            InlineKeyboardButton("⏰ Reminder", callback_data="btn_reminder_menu"),
+            InlineKeyboardButton("🕌 Prayer Time", callback_data="btn_prayer")
         ],
         [
-            InlineKeyboardButton(
-                "🌦️ Weather",
-                callback_data="btn_weather"
-            ),
-            InlineKeyboardButton(
-                "🔔 Notifications",
-                callback_data="btn_notifications"
-            )
+            InlineKeyboardButton("🌦️ Weather", callback_data="btn_weather"),
+            InlineKeyboardButton("🔔 Notifications", callback_data="btn_notifications")
         ],
-        [
-            InlineKeyboardButton(
-                "ℹ️ Help",
-                callback_data="btn_help"
-            )
-        ]
+        [InlineKeyboardButton("ℹ️ Help", callback_data="btn_help")]
     ]
 
-    reply_markup = attach_ad_to_keyboard(
-        InlineKeyboardMarkup(keyboard)
-    )
+    reply_markup = attach_ad_to_keyboard(InlineKeyboardMarkup(keyboard))
 
     welcome_text = (
-        f"👋 আসসালামু আলাইকুম, "
-        f"{user.first_name}!\n\n"
+        f"👋 আসসালামু আলাইকুম, {user.first_name}!\n\n"
         "আমি আপনার অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট।\n"
-        "যেকোনো প্রশ্ন করুন কিংবা "
-        "গান/ভিডিও/নাটক খুঁজতে নাম লিখুন।\n\n"
+        "যেকোনো প্রশ্ন করুন কিংবা গান/ভিডিও/নাটক খুঁজতে নাম লিখুন।\n\n"
         "নিচের মেনু থেকেও সুবিধা বেছে নিতে পারেন: 👇"
     )
 
-    await update.message.reply_text(
-        welcome_text,
-        reply_markup=reply_markup
-    )
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 
 # ============================================================
 # HELP HANDLER
 # ============================================================
 
-async def help_handler(
-    update,
-    context
-):
-
+async def help_handler(update, context):
     help_text = (
         "📖 *বটের ব্যবহার নির্দেশিকা:*\n\n"
-        "• যেকোনো প্রশ্ন বা কথা লিখলে "
-        "মানুষসুলভ স্বাভাবিক উত্তর দেব।\n"
-        "• Content পেতে শুধু নাম লিখলেও হবে।\n"
-        "• যেমন: `Tiktok`\n"
-        "• `গান`\n"
-        "• `মুভি দাও`\n"
-        "• `ব্যাচেলর পয়েন্ট ভিডিও দেও`\n"
+        "• যেকোনো প্রশ্ন বা কথা লিখলে মানুষসুলভ স্বাভাবিক উত্তর দেব।\n"
+        "• Content পেতে লিখুন: `গান দাও`, `মুভি দাও`, `ব্যাচেলর পয়েন্ট ভিডিও দেও`\n"
         "• Admin-এর Social ID চাইলে লিখুন:\n"
-        "  `Admin Facebook দাও`\n"
-        "  `Admin TikTok দাও`\n"
-        "  `Admin WhatsApp দাও`\n"
-        "  `Admin Telegram দাও`\n"
-        "• অ্যাডমিন ভিডিও/অডিও পাঠালে "
-        "সরাসরি আপলোড মোড চালু হবে।"
+        "  `Admin Facebook দাও` | `Admin TikTok দাও` | `Admin WhatsApp দাও`\n"
+        "• অ্যাডমিন ভিডিও/অডিও পাঠালে সরাসরি আপলোড মোড চালু হবে।"
     )
-
-    await update.message.reply_text(
-        help_text,
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
 # ============================================================
 # MEDIA UPLOAD INIT
 # ============================================================
 
-async def media_upload_init(
-    update,
-    context
-):
-
+async def media_upload_init(update, context):
     user_id = update.effective_user.id
-
     if user_id not in ADMIN_IDS:
         return
 
     message = update.message
-
     file_id = None
     media_type = None
 
     if message.video:
-
         file_id = message.video.file_id
         media_type = "video"
-
     elif message.audio:
-
         file_id = message.audio.file_id
         media_type = "audio"
-
     elif message.photo:
-
         file_id = message.photo[-1].file_id
         media_type = "photo"
-
     elif message.document:
-
         file_id = message.document.file_id
         media_type = "document"
 
@@ -473,409 +254,134 @@ async def media_upload_init(
         "title": ""
     }
 
-    await message.reply_text(
-        "🎬 এই কন্টেন্টের নাম কী?\n"
-        "সঠিক নামটি লিখে পাঠান:"
-    )
+    await message.reply_text("🎬 এই কন্টেন্টের নাম কী?\nসঠিক নামটি লিখে পাঠান:")
 
 
 # ============================================================
 # FINALIZE CONTENT SAVE
 # ============================================================
 
-async def finalize_content_save(
-    event,
-    user_id: int,
-    category: str
-):
-
-    session = admin_upload_sessions.get(
-        user_id
-    )
-
+async def finalize_content_save(event, user_id: int, category: str):
+    session = admin_upload_sessions.get(user_id)
     if not session:
         return
 
-    title = session.get(
-        "title",
-        "Untitled"
-    )
-
-    file_id = session.get(
-        "file_id"
-    )
-
-    media_type = session.get(
-        "media_type"
-    )
+    title = session.get("title", "Untitled")
+    file_id = session.get("file_id")
+    media_type = session.get("media_type")
 
     if not file_id or not media_type:
-
-        admin_upload_sessions.pop(
-            user_id,
-            None
-        )
-
-        error_text = (
-            "❌ Content-এর file information "
-            "পাওয়া যায়নি।\n\n"
-            "ভিডিও/ফাইলটি আবার পাঠান।"
-        )
-
+        admin_upload_sessions.pop(user_id, None)
+        error_text = "❌ Content-এর file information পাওয়া যায়নি।\n\nভিডিও/ফাইলটি আবার পাঠান।"
         try:
-
-            if hasattr(
-                event,
-                "edit_message_text"
-            ):
-
-                await event.edit_message_text(
-                    error_text
-                )
-
+            if hasattr(event, "edit_message_text"):
+                await event.edit_message_text(error_text)
             else:
-
-                await event.reply_text(
-                    error_text
-                )
-
+                await event.reply_text(error_text)
         except Exception as e:
-
-            print(
-                "❌ File information error:",
-                repr(e)
-            )
-
+            print("❌ File information error:", repr(e))
         return
 
     try:
-
         async with AsyncSessionLocal() as db_session:
-
             new_content = Content(
                 title=title,
                 category=category,
                 file_id=file_id,
                 media_type=media_type,
-                keywords=(
-                    f"{title.lower()}, "
-                    f"{category.lower()}"
-                ),
+                keywords=f"{title.lower()}, {category.lower()}",
                 uploader_id=user_id
             )
-
-            db_session.add(
-                new_content
-            )
-
+            db_session.add(new_content)
             await db_session.commit()
-
-            await db_session.refresh(
-                new_content
-            )
-
+            await db_session.refresh(new_content)
             cid = new_content.content_id
 
-        print(
-            f"✅ Content saved successfully: "
-            f"#{cid} | {title} | {category}"
-        )
-
+        print(f"✅ Content saved successfully: #{cid} | {title} | {category}")
     except Exception as e:
-
-        print(
-            "❌ PostgreSQL content save error:",
-            repr(e)
-        )
-
-        error_text = (
-            "❌ Content Save করা যায়নি!\n\n"
-            "Database-এ সমস্যা হয়েছে।\n"
-            "ভিডিওটি আবার পাঠিয়ে চেষ্টা করুন।\n\n"
-            f"Error: {str(e)[:500]}"
-        )
-
+        print("❌ PostgreSQL content save error:", repr(e))
+        error_text = f"❌ Content Save করা যায়নি!\n\nError: {str(e)[:500]}"
         try:
-
-            if hasattr(
-                event,
-                "edit_message_text"
-            ):
-
-                await event.edit_message_text(
-                    error_text
-                )
-
+            if hasattr(event, "edit_message_text"):
+                await event.edit_message_text(error_text)
             else:
-
-                await event.reply_text(
-                    error_text
-                )
-
-        except Exception as send_error:
-
-            print(
-                "❌ Error message send failed:",
-                repr(send_error)
-            )
-
+                await event.reply_text(error_text)
+        except Exception:
+            pass
         return
 
     edit_markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(
-                "✏️ নাম এডিট",
-                callback_data=f"edit_cname_{cid}"
-            ),
-            InlineKeyboardButton(
-                "🗑️ ডিলিট",
-                callback_data=f"del_c_{cid}"
-            )
+            InlineKeyboardButton("✏️ নাম এডিট", callback_data=f"edit_cname_{cid}"),
+            InlineKeyboardButton("🗑️ ডিলিট", callback_data=f"del_c_{cid}")
         ]
     ])
 
-    # Markdown সমস্যা এড়ানোর জন্য
-    # title/category escape করা হচ্ছে
-    safe_title = (
-        str(title)
-        .replace("\\", "\\\\")
-        .replace("*", "\\*")
-        .replace("_", "\\_")
-        .replace("`", "\\`")
-        .replace("[", "\\[")
-    )
-
-    safe_category = (
-        str(category)
-        .replace("\\", "\\\\")
-        .replace("*", "\\*")
-        .replace("_", "\\_")
-        .replace("`", "\\`")
-        .replace("[", "\\[")
-    )
-
-    success_text = (
-        "✅ *Content Successfully Added!*\n\n"
-        f"🎬 *Name:* {safe_title}\n"
-        f"📂 *Category:* {safe_category}\n"
-        f"💾 *Database ID:* #{cid}\n\n"
-        "💾 PostgreSQL database-এ "
-        "Content সফলভাবে Save হয়েছে। ✅\n\n"
-        "প্রয়োজন হলে নিচের বাটন দিয়ে "
-        "সংশোধন বা ডিলিট করতে পারেন: 👇"
-    )
-
+    success_text = f"✅ *Content Successfully Added!*\n\n🎬 *Name:* {title}\n📂 *Category:* {category}\n💾 *Database ID:* #{cid}"
     try:
-
-        if hasattr(
-            event,
-            "edit_message_text"
-        ):
-
-            await event.edit_message_text(
-                success_text,
-                reply_markup=edit_markup,
-                parse_mode="MarkdownV2"
-            )
-
+        if hasattr(event, "edit_message_text"):
+            await event.edit_message_text(success_text, reply_markup=edit_markup)
         else:
+            await event.reply_text(success_text, reply_markup=edit_markup)
+    except Exception:
+        pass
 
-            await event.reply_text(
-                success_text,
-                reply_markup=edit_markup,
-                parse_mode="MarkdownV2"
-            )
-
-    except Exception as e:
-
-        print(
-            "❌ Success message edit error:",
-            repr(e)
-        )
-
-        # Markdown message edit না হলে
-        # plain text message পাঠাবে
-
-        plain_success = (
-            "✅ Content Successfully Added!\n\n"
-            f"🎬 Name: {title}\n"
-            f"📂 Category: {category}\n"
-            f"💾 Database ID: #{cid}\n\n"
-            "PostgreSQL database-এ "
-            "Content সফলভাবে Save হয়েছে। ✅"
-        )
-
-        try:
-
-            if hasattr(
-                event,
-                "message"
-            ) and event.message:
-
-                await event.message.reply_text(
-                    plain_success,
-                    reply_markup=edit_markup
-                )
-
-            elif hasattr(
-                event,
-                "reply_text"
-            ):
-
-                await event.reply_text(
-                    plain_success,
-                    reply_markup=edit_markup
-                )
-
-        except Exception as send_error:
-
-            print(
-                "❌ Plain success message error:",
-                repr(send_error)
-            )
-
-    admin_upload_sessions.pop(
-        user_id,
-        None
-    )
+    admin_upload_sessions.pop(user_id, None)
 
 
 # ============================================================
 # CATEGORY CALLBACK HANDLER
 # ============================================================
 
-async def category_callback_handler(
-    update,
-    context
-):
-
+async def category_callback_handler(update, context):
     query = update.callback_query
-
     user_id = query.from_user.id
 
     if user_id not in ADMIN_IDS:
-
-        await query.answer(
-            "⛔ আপনি Admin নন।",
-            show_alert=True
-        )
-
+        await query.answer("⛔ আপনি Admin নন।", show_alert=True)
         return
 
     try:
-
         await query.answer()
-
     except Exception:
-
         pass
 
     data = query.data
-
-    session = admin_upload_sessions.get(
-        user_id
-    )
+    session = admin_upload_sessions.get(user_id)
 
     if not session:
-
         try:
-
-            await query.message.reply_text(
-                "⚠️ এই upload session আর পাওয়া যাচ্ছে না।\n\n"
-                "বট restart/deploy হওয়ার কারণে "
-                "session মুছে যেতে পারে।\n\n"
-                "অনুগ্রহ করে ভিডিও/ফাইলটি আবার পাঠান!"
-            )
-
-        except Exception as e:
-
-            print(
-                "❌ Session error:",
-                repr(e)
-            )
-
+            await query.message.reply_text("⚠️ এই upload session আর পাওয়া যাচ্ছে না। অনুগ্রহ করে ফাইলটি আবার পাঠান!")
+        except Exception:
+            pass
         return
 
     if data == "admin_edit_name_btn":
-
         session["step"] = "WAITING_TITLE"
-
-        await query.edit_message_text(
-            "✏️ কন্টেন্টের নতুন সঠিক নামটি লিখে পাঠান:"
-        )
-
+        await query.edit_message_text("✏️ কন্টেন্টের নতুন সঠিক নামটি লিখে পাঠান:")
         return
 
     if data == "admin_custom_cat_btn":
-
         session["step"] = "WAITING_CUSTOM_CAT"
-
-        await query.edit_message_text(
-            "✍️ আপনার পছন্দের নতুন ক্যাটাগরির "
-            "নাম লিখে পাঠান:"
-        )
-
+        await query.edit_message_text("✍️ আপনার পছন্দের নতুন ক্যাটাগরির নাম লিখে পাঠান:")
         return
 
     if data == "admin_cancel_btn":
-
-        admin_upload_sessions.pop(
-            user_id,
-            None
-        )
-
-        await query.edit_message_text(
-            "❌ আপলোড বাতিল করা হয়েছে।"
-        )
-
+        admin_upload_sessions.pop(user_id, None)
+        await query.edit_message_text("❌ আপলোড বাতিল করা হয়েছে।")
         return
 
-    if data.startswith(
-        "admin_cat_page:"
-    ):
-
-        try:
-
-            page = int(
-                data.split(":")[1]
-            )
-
-        except Exception:
-
-            page = 0
-
+    if data.startswith("admin_cat_page:"):
+        page = int(data.split(":")[1]) if ":" in data else 0
         await query.edit_message_reply_markup(
-            reply_markup=get_category_keyboard(
-                page=page,
-                callback_prefix="admin_cat"
-            )
+            reply_markup=get_category_keyboard(page=page, callback_prefix="admin_cat")
         )
-
         return
 
-    if data.startswith(
-        "admin_cat:"
-    ):
-
-        cat_name = data.split(
-            ":",
-            1
-        )[1]
-
-        if not cat_name.strip():
-
-            await query.message.reply_text(
-                "❌ Category-এর নাম পাওয়া যায়নি।"
-            )
-
-            return
-
-        await finalize_content_save(
-            query,
-            user_id,
-            cat_name.strip()
-        )
-
+    if data.startswith("admin_cat:"):
+        cat_name = data.split(":", 1)[1]
+        if cat_name.strip():
+            await finalize_content_save(query, user_id, cat_name.strip())
         return
 
 
@@ -883,197 +389,59 @@ async def category_callback_handler(
 # EDIT / DELETE SAVED CONTENT
 # ============================================================
 
-async def edit_saved_content_callback(
-    update,
-    context
-):
-
+async def edit_saved_content_callback(update, context):
     query = update.callback_query
-
     await query.answer()
-
     data = query.data
-
     user_id = query.from_user.id
 
     if user_id not in ADMIN_IDS:
-
-        await query.message.reply_text(
-            "⛔ আপনার এই কাজ করার অনুমতি নেই।"
-        )
-
+        await query.message.reply_text("⛔ আপনার এই কাজ করার অনুমতি নেই।")
         return
 
-    if data.startswith(
-        "del_c_"
-    ):
-
-        try:
-
-            cid = int(
-                data.split("_")[2]
-            )
-
-        except Exception:
-
-            await query.message.reply_text(
-                "⚠️ Content ID ভুল।"
-            )
-
-            return
-
+    if data.startswith("del_c_"):
+        cid = int(data.split("_")[2])
         async with AsyncSessionLocal() as session:
-
-            result = await session.execute(
-                select(Content).where(
-                    Content.content_id == cid
-                )
-            )
-
-            content = result.scalars().first()
-
-            if not content:
-
-                await query.edit_message_text(
-                    f"⚠️ Content #{cid} পাওয়া যায়নি।"
-                )
-
-                return
-
-            await session.execute(
-                delete(Content).where(
-                    Content.content_id == cid
-                )
-            )
-
+            await session.execute(delete(Content).where(Content.content_id == cid))
             await session.commit()
-
-        await query.edit_message_text(
-            f"🗑️ কন্টেন্ট #{cid} "
-            "ডাটাবেস থেকে ডিলিট করা হয়েছে।"
-        )
-
+        await query.edit_message_text(f"🗑️ কন্টেন্ট #{cid} ডিলিট করা হয়েছে।")
         return
 
-    if data.startswith(
-        "edit_cname_"
-    ):
-
-        try:
-
-            cid = int(
-                data.split("_")[2]
-            )
-
-        except Exception:
-
-            await query.message.reply_text(
-                "⚠️ Content ID ভুল।"
-            )
-
-            return
-
-        async with AsyncSessionLocal() as session:
-
-            result = await session.execute(
-                select(Content).where(
-                    Content.content_id == cid
-                )
-            )
-
-            content = result.scalars().first()
-
-        if not content:
-
-            await query.message.reply_text(
-                f"⚠️ Content #{cid} পাওয়া যায়নি।"
-            )
-
-            return
-
-        admin_upload_sessions[user_id] = {
-            "step": "EDITING_EXISTING_TITLE",
-            "target_cid": cid
-        }
-
-        await query.message.reply_text(
-            f"✏️ কন্টেন্ট #{cid}-এর জন্য "
-            "নতুন নাম লিখে পাঠান:"
-        )
+    if data.startswith("edit_cname_"):
+        cid = int(data.split("_")[2])
+        admin_upload_sessions[user_id] = {"step": "EDITING_EXISTING_TITLE", "target_cid": cid}
+        await query.message.reply_text(f"✏️ কন্টেন্ট #{cid}-এর নতুন নাম লিখে পাঠান:")
 
 
 # ============================================================
 # CANCEL COMMAND
 # ============================================================
 
-async def cancel_command(
-    update,
-    context
-):
-
+async def cancel_command(update, context):
     user_id = update.effective_user.id
-
     if user_id in admin_upload_sessions:
-
-        admin_upload_sessions.pop(
-            user_id,
-            None
-        )
-
-        await update.message.reply_text(
-            "❌ চলতি কাজ বাতিল করা হয়েছে।"
-        )
-
+        admin_upload_sessions.pop(user_id, None)
+        await update.message.reply_text("❌ চলতি কাজ বাতিল করা হয়েছে।")
     else:
-
-        await update.message.reply_text(
-            "বাতিল করার মতো কোনো সেশন নেই।"
-        )
+        await update.message.reply_text("বাতিল করার মতো কোনো সেশন নেই।")
 
 
 # ============================================================
 # SEND VIDEO WEB APP
 # ============================================================
 
-async def send_video_webapp(
-    update,
-    context,
-    content_item
-):
-
+async def send_video_webapp(update, context, content_item):
     user_id = update.effective_user.id
+    webapp_url = f"{WEBAPP_BASE_URL}/app?content_id={content_item.content_id}"
 
-    webapp_url = (
-        WEBAPP_BASE_URL
-        + "/app?content_id="
-        + str(content_item.content_id)
-    )
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                "🔓 OPEN",
-                web_app=WebAppInfo(
-                    url=webapp_url
-                )
-            )
-        ]
-    ])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔓 OPEN", web_app=WebAppInfo(url=webapp_url))]])
 
     await context.bot.send_message(
         chat_id=user_id,
-        text=(
-            "🔒 *Content Locked*\n\n"
-            f"🎬 *{content_item.title}*\n"
-            f"📂 ক্যাটাগরি: "
-            f"{content_item.category}\n\n"
-            "ভিডিও দেখতে নিচের "
-            "*🔓 OPEN* বাটনে চাপুন।"
-        ),
+        text=f"🔒 *Content Locked*\n\n🎬 *{content_item.title}*\n📂 ক্যাটাগরি: {content_item.category}\n\nভিডিও দেখতে নিচের *🔓 OPEN* বাটনে চাপুন।",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
-
     return True
 
 
@@ -1081,72 +449,26 @@ async def send_video_webapp(
 # SEND CONTENT TO USER
 # ============================================================
 
-async def send_content_to_user(
-    update,
-    context,
-    content_item
-):
-
+async def send_content_to_user(update, context, content_item):
     user_id = update.effective_user.id
-
-    caption = (
-        f"🎬 *{content_item.title}*\n"
-        f"📂 ক্যাটাগরি: "
-        f"{content_item.category}"
-    )
+    caption = f"🎬 *{content_item.title}*\n📂 ক্যাটাগরি: {content_item.category}"
 
     try:
-
         if content_item.media_type == "video":
+            return await send_video_webapp(update, context, content_item)
 
-            return await send_video_webapp(
-                update,
-                context,
-                content_item
-            )
-
-        keyboard = attach_ad_to_keyboard(
-            InlineKeyboardMarkup([])
-        )
+        keyboard = attach_ad_to_keyboard(InlineKeyboardMarkup([]))
 
         if content_item.media_type == "audio":
-
-            await context.bot.send_audio(
-                chat_id=user_id,
-                audio=content_item.file_id,
-                caption=caption,
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-
+            await context.bot.send_audio(chat_id=user_id, audio=content_item.file_id, caption=caption, reply_markup=keyboard, parse_mode="Markdown")
         elif content_item.media_type == "photo":
-
-            await context.bot.send_photo(
-                chat_id=user_id,
-                photo=content_item.file_id,
-                caption=caption,
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-
+            await context.bot.send_photo(chat_id=user_id, photo=content_item.file_id, caption=caption, reply_markup=keyboard, parse_mode="Markdown")
         else:
-
-            await context.bot.send_document(
-                chat_id=user_id,
-                document=content_item.file_id,
-                caption=caption,
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
+            await context.bot.send_document(chat_id=user_id, document=content_item.file_id, caption=caption, reply_markup=keyboard, parse_mode="Markdown")
 
         return True
-
     except Exception as e:
-
-        print(
-            f"❌ Content send error: {e}"
-        )
-
+        print(f"❌ Content send error: {e}")
         return False
 
 
@@ -1154,46 +476,21 @@ async def send_content_to_user(
 # SAVE CONTENT REQUEST
 # ============================================================
 
-async def save_content_request(
-    update,
-    context,
-    text
-):
-
+async def save_content_request(update, context, text):
     user_id = update.effective_user.id
-
     async with AsyncSessionLocal() as db_sess:
-
-        req = ContentRequest(
-            user_id=user_id,
-            username=(
-                update.effective_user.username
-            ),
-            query=text
-        )
-
+        req = ContentRequest(user_id=user_id, username=update.effective_user.username, query=text)
         db_sess.add(req)
-
         await db_sess.commit()
 
     for admin_id in ADMIN_IDS:
-
         try:
-
             await context.bot.send_message(
                 chat_id=admin_id,
-                text=(
-                    "🔔 *Content Request*\n\n"
-                    f"👤 User: "
-                    f"@{update.effective_user.username or user_id}\n"
-                    f"🔎 Requested: `{text}`\n"
-                    "❌ Status: Not Found"
-                ),
+                text=f"🔔 *Content Request*\n\n👤 User: @{update.effective_user.username or user_id}\n🔎 Requested: `{text}`\n❌ Status: Not Found",
                 parse_mode="Markdown"
             )
-
         except Exception:
-
             pass
 
 
@@ -1202,152 +499,57 @@ async def save_content_request(
 # ============================================================
 
 async def get_categories_ordered_by_latest():
-
     async with AsyncSessionLocal() as session:
-
         result = await session.execute(
-            select(
-                Content.category,
-                func.max(
-                    Content.created_at
-                ).label(
-                    "latest_content"
-                )
-            )
-            .where(
-                Content.category.is_not(None)
-            )
-            .group_by(
-                Content.category
-            )
-            .order_by(
-                func.max(
-                    Content.created_at
-                ).desc()
-            )
+            select(Content.category, func.max(Content.created_at).label("latest_content"))
+            .where(Content.category.is_not(None))
+            .group_by(Content.category)
+            .order_by(func.max(Content.created_at).desc())
         )
-
-        rows = result.all()
-
-        categories = [
-            row[0]
-            for row in rows
-            if row[0]
-        ]
-
-        return categories
+        return [row[0] for row in result.all() if row[0]]
 
 
 # ============================================================
 # SHOW AVAILABLE CONTENT
 # ============================================================
 
-async def show_available_content(
-    update,
-    context,
-    page=0
-):
-
+async def show_available_content(update, context, page=0):
     query = update.callback_query
-
     try:
-
-        categories = (
-            await get_categories_ordered_by_latest()
-        )
-
+        categories = await get_categories_ordered_by_latest()
     except Exception as e:
-
-        print(
-            "❌ Available category database error:",
-            repr(e)
-        )
-
-        await query.edit_message_text(
-            "❌ Available Content লোড করা যাচ্ছে না।\n\n"
-            "Database connection-এর সমস্যা হয়েছে।"
-        )
-
+        print("❌ Available category database error:", repr(e))
+        await query.edit_message_text("❌ Database connection-এর সমস্যা হয়েছে।")
         return
 
     if not categories:
-
-        await query.edit_message_text(
-            "📂 এখনো কোনো content "
-            "database-এ যোগ করা হয়নি।"
-        )
-
+        await query.edit_message_text("📂 এখনো কোনো content database-এ যোগ করা হয়নি।")
         return
 
     per_page = 8
-
     start = page * per_page
-
     end = start + per_page
-
-    current_categories = categories[
-        start:end
-    ]
+    current_categories = categories[start:end]
 
     keyboard = []
-
-    for index, category in enumerate(
-        current_categories
-    ):
-
+    for index, category in enumerate(current_categories):
         global_index = start + index
-
-        keyboard.append([
-            InlineKeyboardButton(
-                f"📂 {category}",
-                callback_data=(
-                    f"user_cat:{global_index}"
-                )
-            )
-        ])
+        keyboard.append([InlineKeyboardButton(f"📂 {category}", callback_data=f"user_cat:{global_index}")])
 
     nav = []
-
     if page > 0:
-
-        nav.append(
-            InlineKeyboardButton(
-                "⬅️ Back",
-                callback_data=(
-                    f"user_categories:{page - 1}"
-                )
-            )
-        )
-
+        nav.append(InlineKeyboardButton("⬅️ Back", callback_data=f"user_categories:{page - 1}"))
     if end < len(categories):
-
-        nav.append(
-            InlineKeyboardButton(
-                "➡️ More",
-                callback_data=(
-                    f"user_categories:{page + 1}"
-                )
-            )
-        )
+        nav.append(InlineKeyboardButton("➡️ More", callback_data=f"user_categories:{page + 1}"))
 
     if nav:
-
         keyboard.append(nav)
 
-    keyboard.append([
-        InlineKeyboardButton(
-            "🔎 Search Again",
-            callback_data="btn_search_prompt"
-        )
-    ])
+    keyboard.append([InlineKeyboardButton("🔎 Search Again", callback_data="btn_search_prompt")])
 
     await query.edit_message_text(
-        "📂 *Available Content*\n\n"
-        "সর্বশেষ যোগ করা Category "
-        "সবার উপরে দেখানো হচ্ছে। 👇",
-        reply_markup=InlineKeyboardMarkup(
-            keyboard
-        ),
+        "📂 *Available Content*\n\nসর্বশেষ যোগ করা Category সবার উপরে দেখানো হচ্ছে। 👇",
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
 
@@ -1356,1023 +558,305 @@ async def show_available_content(
 # SHOW CATEGORY CONTENT
 # ============================================================
 
-async def show_category_content(
-    update,
-    context,
-    category_index
-):
-
+async def show_category_content(update, context, category_index):
     query = update.callback_query
-
     try:
-
-        categories = (
-            await get_categories_ordered_by_latest()
-        )
-
-    except Exception as e:
-
-        print(
-            "❌ Category database error:",
-            repr(e)
-        )
-
-        await query.edit_message_text(
-            "❌ Category লোড করা যাচ্ছে না।"
-        )
-
+        categories = await get_categories_ordered_by_latest()
+    except Exception:
+        await query.edit_message_text("❌ Category লোড করা যাচ্ছে না।")
         return
 
-    if (
-        category_index < 0
-        or category_index >= len(categories)
-    ):
-
-        await query.edit_message_text(
-            "⚠️ এই category আর পাওয়া যাচ্ছে না."
-        )
-
+    if category_index < 0 or category_index >= len(categories):
+        await query.edit_message_text("⚠️ এই category আর পাওয়া যাচ্ছে না.")
         return
 
-    category = categories[
-        category_index
-    ]
-
-    try:
-
-        async with AsyncSessionLocal() as session:
-
-            result = await session.execute(
-                select(Content)
-                .where(
-                    Content.category == category
-                )
-                .order_by(
-                    Content.created_at.desc()
-                )
-            )
-
-            contents = result.scalars().all()
-
-    except Exception as e:
-
-        print(
-            "❌ Category content database error:",
-            repr(e)
+    category = categories[category_index]
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Content).where(Content.category == category).order_by(Content.created_at.desc())
         )
-
-        await query.edit_message_text(
-            "❌ এই Category-এর content "
-            "লোড করা যাচ্ছে না।"
-        )
-
-        return
+        contents = result.scalars().all()
 
     if not contents:
-
-        await query.edit_message_text(
-            f"😔 *{category}* category-তে "
-            "কোনো content নেই.",
-            parse_mode="Markdown"
-        )
-
+        await query.edit_message_text(f"😔 *{category}* category-তে কোনো content নেই.", parse_mode="Markdown")
         return
 
     keyboard = []
-
     for item in contents[:30]:
+        title = item.title[:42] + "..." if len(item.title) > 45 else item.title
+        keyboard.append([InlineKeyboardButton(f"🎬 {title}", callback_data=f"user_content:{item.content_id}")])
 
-        title = item.title
+    keyboard.append([InlineKeyboardButton("📂 Back to Categories", callback_data="user_categories:0")])
 
-        if len(title) > 45:
-
-            title = (
-                title[:42]
-                + "..."
-            )
-
-        keyboard.append([
-            InlineKeyboardButton(
-                f"🎬 {title}",
-                callback_data=(
-                    f"user_content:"
-                    f"{item.content_id}"
-                )
-            )
-        ])
-
-    keyboard.append([
-        InlineKeyboardButton(
-            "📂 Back to Categories",
-            callback_data="user_categories:0"
-        )
-    ])
-
-    await query.edit_message_text(
-        f"📂 *{category}*\n\n"
-        "নিচের content থেকে নির্বাচন করুন:",
-        reply_markup=InlineKeyboardMarkup(
-            keyboard
-        ),
-        parse_mode="Markdown"
-    )
+    await query.edit_message_text(f"📂 *{category}*\n\nনিচের content থেকে নির্বাচন করুন:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
 
 # ============================================================
 # SEND SELECTED CONTENT
 # ============================================================
 
-async def send_selected_content(
-    update,
-    context,
-    content_id
-):
-
+async def send_selected_content(update, context, content_id):
     query = update.callback_query
-
     try:
-
-        content_id = int(
-            content_id
-        )
-
+        content_id = int(content_id)
     except Exception:
-
-        await query.answer(
-            "⚠️ Content ID ভুল।",
-            show_alert=True
-        )
-
+        await query.answer("⚠️ Content ID ভুল।", show_alert=True)
         return
 
     async with AsyncSessionLocal() as session:
-
-        result = await session.execute(
-            select(Content).where(
-                Content.content_id == content_id
-            )
-        )
-
-        content_item = (
-            result.scalars().first()
-        )
+        result = await session.execute(select(Content).where(Content.content_id == content_id))
+        content_item = result.scalars().first()
 
     if not content_item:
-
-        await query.answer(
-            "এই content আর পাওয়া যাচ্ছে না।",
-            show_alert=True
-        )
-
+        await query.answer("এই content আর পাওয়া যাচ্ছে না।", show_alert=True)
         return
 
     await query.answer()
-
-    try:
-
-        if content_item.media_type == "video":
-
-            return await send_video_webapp(
-                update,
-                context,
-                content_item
-            )
-
-        caption = (
-            f"🎬 *{content_item.title}*\n"
-            f"📂 ক্যাটাগরি: "
-            f"{content_item.category}"
-        )
-
-        keyboard = attach_ad_to_keyboard(
-            InlineKeyboardMarkup([])
-        )
-
-        if content_item.media_type == "audio":
-
-            await context.bot.send_audio(
-                chat_id=query.from_user.id,
-                audio=content_item.file_id,
-                caption=caption,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
-
-        elif content_item.media_type == "photo":
-
-            await context.bot.send_photo(
-                chat_id=query.from_user.id,
-                photo=content_item.file_id,
-                caption=caption,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
-
-        else:
-
-            await context.bot.send_document(
-                chat_id=query.from_user.id,
-                document=content_item.file_id,
-                caption=caption,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
-
-    except Exception as e:
-
-        print(
-            f"❌ Selected content send error: {e}"
-        )
-
-        await query.message.reply_text(
-            "❌ Content পাঠানো যায়নি।"
-        )
+    await send_content_to_user(update, context, content_item)
 
 
 # ============================================================
 # USER CALLBACK HANDLER
 # ============================================================
 
-async def user_callback_handler(
-    update,
-    context
-):
-
+async def user_callback_handler(update, context):
     query = update.callback_query
-
     data = query.data
 
     if data == "btn_categories_list":
-
         await query.answer()
-
-        await show_available_content(
-            update,
-            context,
-            page=0
-        )
-
+        await show_available_content(update, context, page=0)
         return
 
-    if data.startswith(
-        "user_categories:"
-    ):
-
+    if data.startswith("user_categories:"):
         await query.answer()
-
-        try:
-
-            page = int(
-                data.split(":")[1]
-            )
-
-        except Exception:
-
-            page = 0
-
-        await show_available_content(
-            update,
-            context,
-            page=page
-        )
-
+        page = int(data.split(":")[1]) if ":" in data else 0
+        await show_available_content(update, context, page=page)
         return
 
-    if data.startswith(
-        "user_cat:"
-    ):
-
+    if data.startswith("user_cat:"):
         await query.answer()
-
-        try:
-
-            category_index = int(
-                data.split(":")[1]
-            )
-
-        except Exception:
-
-            await query.message.reply_text(
-                "⚠️ Category পাওয়া যায়নি."
-            )
-
-            return
-
-        await show_category_content(
-            update,
-            context,
-            category_index
-        )
-
+        category_index = int(data.split(":")[1]) if ":" in data else 0
+        await show_category_content(update, context, category_index)
         return
 
-    if data.startswith(
-        "user_content:"
-    ):
-
-        try:
-
-            content_id = int(
-                data.split(":")[1]
-            )
-
-        except Exception:
-
-            await query.answer(
-                "⚠️ Content ID ভুল।",
-                show_alert=True
-            )
-
-            return
-
-        await send_selected_content(
-            update,
-            context,
-            content_id
-        )
-
+    if data.startswith("user_content:"):
+        content_id = int(data.split(":")[1]) if ":" in data else 0
+        await send_selected_content(update, context, content_id)
         return
 
     if data == "btn_search_prompt":
-
         await query.answer()
-
-        await query.message.reply_text(
-            "🔎 যে গান, ভিডিও, মুভি, নাটক "
-            "বা category খুঁজছেন তার নাম লিখুন.\n\n"
-            "উদাহরণ:\n"
-            "• Tiktok\n"
-            "• গান\n"
-            "• মুভি দাও\n"
-            "• ব্যাচেলর পয়েন্ট\n"
-            "• Funny Video"
-        )
-
+        await query.message.reply_text("🔎 যে গান, ভিডিও, মুভি, নাটক বা category খুঁজছেন তার নাম লিখুন।\n\nউদাহরণ:\n• গান দাও\n• মুভি দাও\n• ব্যাচেলর পয়েন্ট")
         return
 
     if data == "btn_ai_help":
-
         await query.answer()
-
-        await query.message.reply_text(
-            "🤖 আমাকে যেকোনো প্রশ্ন করতে পারেন."
-        )
-
+        await query.message.reply_text("🤖 আমাকে যেকোনো প্রশ্ন করতে পারেন।")
         return
 
     if data == "btn_content_help":
-
         await query.answer()
-
-        await query.message.reply_text(
-            "🎬 Content পেতে শুধু নাম লিখুন.\n\n"
-            "উদাহরণ:\n"
-            "Tiktok\n"
-            "গান\n"
-            "মুভি\n"
-            "নাটক\n"
-            "Funny Video"
-        )
-
+        await query.message.reply_text("🎬 Content পেতে নাম লিখে বলুন।\n\nউদাহরণ:\n• গান দাও\n• মুভি দাও")
         return
 
     if data == "btn_help":
-
         await query.answer()
-
-        await query.message.reply_text(
-            "ℹ️ Help দেখতে /help লিখুন."
-        )
-
+        await query.message.reply_text("ℹ️ Help দেখতে /help লিখুন।")
         return
 
     if data == "btn_notifications":
-
         await query.answer()
-
-        await notifications_menu(
-            update,
-            context
-        )
-
+        await notifications_menu(update, context)
         return
 
     await query.answer()
 
 
 # ============================================================
-# HANDLE USER TEXT
+# HANDLE USER TEXT (SMART AI FIX)
 # ============================================================
 
-async def handle_user_text(
-    update,
-    context
-):
-
-    if (
-        not update.message
-        or not update.message.text
-    ):
+async def handle_user_text(update, context):
+    if not update.message or not update.message.text:
         return
 
     text = update.message.text.strip()
-
     if not text:
         return
 
     user_id = update.effective_user.id
-
     chat_type = update.effective_chat.type
 
-    # ========================================================
-    # ADMIN UPLOAD SESSION
-    # ========================================================
-
-    session = admin_upload_sessions.get(
-        user_id
-    )
-
+    # Admin Upload Session
+    session = admin_upload_sessions.get(user_id)
     if session:
-
-        step = session.get(
-            "step"
-        )
-
-        # ----------------------------------------------------
-        # WAITING TITLE
-        # ----------------------------------------------------
-
+        step = session.get("step")
         if step == "WAITING_TITLE":
-
             session["title"] = text
-
-            session["step"] = (
-                "SELECTING_CAT"
-            )
-
-            keyboard = get_category_keyboard(
-                page=0,
-                callback_prefix="admin_cat"
-            )
-
-            await update.message.reply_text(
-                f"✅ কন্টেন্টের নাম: *{text}*\n\n"
-                "📂 ক্যাটাগরি নির্বাচন করুন "
-                "(ভুল হলে নিচে থেকে নাম পরিবর্তন "
-                "করতে পারবেন):",
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-
+            session["step"] = "SELECTING_CAT"
+            keyboard = get_category_keyboard(page=0, callback_prefix="admin_cat")
+            await update.message.reply_text(f"✅ কন্টেন্টের নাম: *{text}*\n\n📂 ক্যাটাগরি নির্বাচন করুন:", reply_markup=keyboard, parse_mode="Markdown")
             return
-
-        # ----------------------------------------------------
-        # WAITING CUSTOM CATEGORY
-        # ----------------------------------------------------
-
         if step == "WAITING_CUSTOM_CAT":
-
-            await finalize_content_save(
-                update.message,
-                user_id,
-                text
-            )
-
+            await finalize_content_save(update.message, user_id, text)
             return
-
-        # ----------------------------------------------------
-        # EDIT EXISTING TITLE
-        # ----------------------------------------------------
-
         if step == "EDITING_EXISTING_TITLE":
-
-            cid = session.get(
-                "target_cid"
-            )
-
+            cid = session.get("target_cid")
             async with AsyncSessionLocal() as db_sess:
-
-                result = await db_sess.execute(
-                    select(Content).where(
-                        Content.content_id == cid
-                    )
-                )
-
-                content = (
-                    result.scalars().first()
-                )
-
+                result = await db_sess.execute(select(Content).where(Content.content_id == cid))
+                content = result.scalars().first()
                 if content:
-
                     content.title = text
-
-                    content.keywords = (
-                        f"{text.lower()}, "
-                        f"{content.category.lower()}"
-                    )
-
+                    content.keywords = f"{text.lower()}, {content.category.lower()}"
                     await db_sess.commit()
-
-                    await update.message.reply_text(
-                        f"✅ কন্টেন্ট #{cid}-এর নাম "
-                        f"পরিবর্তন করে *{text}* "
-                        "করা হয়েছে!",
-                        parse_mode="Markdown"
-                    )
-
-                else:
-
-                    await update.message.reply_text(
-                        f"❌ কন্টেন্ট #{cid} "
-                        "পাওয়া যায়নি।"
-                    )
-
-            admin_upload_sessions.pop(
-                user_id,
-                None
-            )
-
+                    await update.message.reply_text(f"✅ কন্টেন্ট #{cid}-এর নাম পরিবর্তন করে *{text}* করা হয়েছে!", parse_mode="Markdown")
+            admin_upload_sessions.pop(user_id, None)
             return
 
-    # ========================================================
-    # GROUP / SUPERGROUP
-    # ========================================================
-
-    if chat_type in [
-        "group",
-        "supergroup"
-    ]:
-
+    # Group Check
+    if chat_type in ["group", "supergroup"]:
         bot_user = await context.bot.get_me()
-
         bot_username = bot_user.username
-
-        mentioned = (
-            f"@{bot_username}".lower()
-            in text.lower()
-        )
-
+        mentioned = f"@{bot_username}".lower() in text.lower()
         replied_to_bot = (
             update.message.reply_to_message
             and update.message.reply_to_message.from_user
-            and update.message.reply_to_message.from_user.id
-            == bot_user.id
+            and update.message.reply_to_message.from_user.id == bot_user.id
         )
-
         if not mentioned and not replied_to_bot:
-
             return
+        text = re.sub(rf"@{re.escape(bot_username)}", "", text, flags=re.IGNORECASE).strip()
 
-        text = re.sub(
-            rf"@{re.escape(bot_username)}",
-            "",
-            text,
-            flags=re.IGNORECASE
-        ).strip()
-
-        if not text:
-
-            return
-
-    # ========================================================
-    # ADMIN SOCIAL
-    # ========================================================
-
-    social_type = detect_admin_social_request(
-        text
-    )
-
+    # Admin Social Request
+    social_type = detect_admin_social_request(text)
     if social_type:
-
-        sent_social = (
-            await send_admin_social_link(
-                update,
-                context,
-                social_type
-            )
-        )
-
-        if sent_social:
-
+        if await send_admin_social_link(update, context, social_type):
             return
 
-    # ========================================================
-    # SEARCH CONTENT
-    # ========================================================
-
-    try:
-
-        content_item = await search_media(
-            text
-        )
-
-    except Exception as e:
-
-        print(
-            "❌ Media search error:",
-            repr(e)
-        )
-
-        content_item = None
-
-    if content_item:
-
-        wait_msg = await update.message.reply_text(
-            "অবশ্যই 😎\n"
-            "একটু অপেক্ষা করুন, দিচ্ছি..... ⏳"
-        )
-
-        sent = await send_content_to_user(
-            update,
-            context,
-            content_item
-        )
-
-        try:
-
-            await wait_msg.delete()
-
-        except Exception:
-
-            pass
-
-        if sent:
-
-            return
-
-    # ========================================================
-    # CONTENT NOT FOUND
-    # ========================================================
-
-    if looks_like_content_request(
-        text
-    ):
-
-        await save_content_request(
-            update,
-            context,
-            text
-        )
-
-        not_found_markup = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(
-                    "📂 Available Content",
-                    callback_data="btn_categories_list"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🔎 Search Again",
-                    callback_data="btn_search_prompt"
-                )
-            ]
-        ])
-
-        await update.message.reply_text(
-            "😔 Sorry! আপনার চাওয়া অনুযায়ী "
-            "এই content এখনো আমার database-এ "
-            "যোগ করা হয়নি.\n\n"
-            f"আমি বিষয়টি আমার বস "
-            f"@{ADMIN_USERNAME}-কে জানিয়ে দিয়েছি। 👑\n\n"
-            "তবে আপনি চাইলে আমাদের "
-            "available content দেখতে পারেন। 👇",
-            reply_markup=not_found_markup
-        )
-
-        return
-
-    # ========================================================
-    # SMART REPLY
-    # ========================================================
-
-    smart_reply = check_smart_reply(
-        text
-    )
-
+    # Smart Quick Reply
+    smart_reply = check_smart_reply(text)
     if smart_reply:
-
-        await update.message.reply_text(
-            smart_reply
-        )
-
+        await update.message.reply_text(smart_reply)
         return
 
-    # ========================================================
-    # REMINDER DETECTION
-    # ========================================================
-
-    time_match = re.search(
-        r"(\d{1,2})[^\d]*([০-৯]{0,2})?\s*"
-        r"(টায়|টা|am|pm|ঘন্টায়)",
-        text,
-        re.IGNORECASE
-    )
-
-    if (
-        (
-            "মনে করিয়ে" in text
-            or "রিমাইন্ডার" in text
-            or "remind" in text.lower()
-        )
-        and time_match
-    ):
-
-        hour = int(
-            time_match.group(1)
-        )
-
-        if (
-            any(
-                w in text
-                for w in [
-                    "সন্ধ্যা",
-                    "রাত",
-                    "বিকাল",
-                    "দুপুর"
-                ]
-            )
-            and hour < 12
-        ):
-
+    # Reminder Detection
+    time_match = re.search(r"(\d{1,2})[^\d]*([০-৯]{0,2})?\s*(টায়|টা|am|pm|ঘন্টায়)", text, re.IGNORECASE)
+    if ("মনে করিয়ে" in text or "রিমাইন্ডার" in text or "remind" in text.lower()) and time_match:
+        hour = int(time_match.group(1))
+        if any(w in text for w in ["সন্ধ্যা", "রাত", "বিকাল", "দুপুর"]) and hour < 12:
             hour += 12
-
-        elif (
-            "সকাল" in text
-            and hour == 12
-        ):
-
+        elif "সকাল" in text and hour == 12:
             hour = 0
 
         rem_type = "custom"
-
         lower_text = text.lower()
-
-        if (
-            "পড়া" in text
-            or "study" in lower_text
-        ):
-
+        if "পড়া" in text or "study" in lower_text:
             rem_type = "study"
-
-        elif (
-            "খেলা" in text
-            or "play" in lower_text
-        ):
-
+        elif "খেলা" in text or "play" in lower_text:
             rem_type = "play"
-
-        elif (
-            "কাজ" in text
-            or "work" in lower_text
-        ):
-
+        elif "কাজ" in text or "work" in lower_text:
             rem_type = "work"
-
-        elif (
-            "ঘুমা" in text
-            or "sleep" in lower_text
-        ):
-
+        elif "ঘুমা" in text or "sleep" in lower_text:
             rem_type = "sleep"
-
-        elif (
-            "খাবার" in text
-            or "food" in lower_text
-        ):
-
+        elif "খাবার" in text or "food" in lower_text:
             rem_type = "food"
 
-        schedule_str = (
-            f"{hour:02d}:00"
-        )
-
+        schedule_str = f"{hour:02d}:00"
         async with AsyncSessionLocal() as db_sess:
-
-            new_rem = Reminder(
-                user_id=user_id,
-                reminder_type=rem_type,
-                message=text,
-                schedule_time=schedule_str,
-                is_recurring=True
-            )
-
-            db_sess.add(
-                new_rem
-            )
-
+            new_rem = Reminder(user_id=user_id, reminder_type=rem_type, message=text, schedule_time=schedule_str, is_recurring=True)
+            db_sess.add(new_rem)
             await db_sess.commit()
 
-        await reload_reminders(
-            context.bot
-        )
-
-        await update.message.reply_text(
-            f"✅ ঠিক আছে! প্রতিদিন "
-            f"{schedule_str}-এ আপনাকে "
-            "মনে করিয়ে দেওয়া হবে। ⏰"
-        )
-
+        await reload_reminders(context.bot)
+        await update.message.reply_text(f"✅ ঠিক আছে! প্রতিদিন {schedule_str}-এ আপনাকে মনে করিয়ে দেওয়া হবে। ⏰")
         return
 
-    # ========================================================
-    # AI RESPONSE
-    # ========================================================
+    # Explicit Content Request Check
+    if looks_like_content_request(text):
+        content_item = await search_media(text)
+        if content_item:
+            wait_msg = await update.message.reply_text("অবশ্যই 😎\nএকটু অপেক্ষা করুন, দিচ্ছি..... ⏳")
+            sent = await send_content_to_user(update, context, content_item)
+            try:
+                await wait_msg.delete()
+            except Exception:
+                pass
+            if sent:
+                return
 
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id,
-        action="typing"
-    )
+        await save_content_request(update, context, text)
+        not_found_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📂 Available Content", callback_data="btn_categories_list")],
+            [InlineKeyboardButton("🔎 Search Again", callback_data="btn_search_prompt")]
+        ])
+        await update.message.reply_text(
+            f"😔 Sorry! আপনার চাওয়া অনুযায়ী এই content এখনো আমার database-এ যোগ করা হয়নি।\n\nআমি বিষয়টি আমার বস @{ADMIN_USERNAME}-কে জানিয়ে দিয়েছি। 👑",
+            reply_markup=not_found_markup
+        )
+        return
 
-    ai_reply = await get_ai_response(
-        text
-    )
-
-    await update.message.reply_text(
-        ai_reply
-    )
+    # Normal AI Conversation (অফিশিয়াল AI ইঞ্জিন দ্বারা উত্তর দেবে)
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    ai_reply = await get_ai_response(text)
+    await update.message.reply_text(ai_reply)
 
 
 # ============================================================
 # NOTIFICATIONS MENU
 # ============================================================
 
-async def notifications_menu(
-    update,
-    context
-):
-
+async def notifications_menu(update, context):
     user_id = update.effective_user.id
-
     async with AsyncSessionLocal() as db_sess:
-
-        user = (
-            await db_sess.execute(
-                select(User).where(
-                    User.user_id == user_id
-                )
-            )
-        ).scalars().first()
+        user = (await db_sess.execute(select(User).where(User.user_id == user_id))).scalars().first()
 
     if not user:
-
-        user = await get_or_create_user(
-            user_id,
-            update.effective_user.username,
-            update.effective_user.first_name,
-            update.effective_user.last_name
-        )
+        user = await get_or_create_user(user_id, update.effective_user.username, update.effective_user.first_name, update.effective_user.last_name)
 
     def get_status_icon(val):
-
-        return (
-            "✅ ON"
-            if val
-            else
-            "❌ OFF"
-        )
+        return "✅ ON" if val else "❌ OFF"
 
     keyboard = [
-        [
-            InlineKeyboardButton(
-                f"🕌 Prayer: "
-                f"{get_status_icon(user.prayer_notify)}",
-                callback_data="toggle_prayer_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"🕐 Hourly: "
-                f"{get_status_icon(user.hourly_notify)}",
-                callback_data="toggle_hourly_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"📚 Study: "
-                f"{get_status_icon(user.study_notify)}",
-                callback_data="toggle_study_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"💼 Work: "
-                f"{get_status_icon(user.work_notify)}",
-                callback_data="toggle_work_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"🎮 Play: "
-                f"{get_status_icon(user.play_notify)}",
-                callback_data="toggle_play_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"😴 Sleep: "
-                f"{get_status_icon(user.sleep_notify)}",
-                callback_data="toggle_sleep_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"🌅 Wake-up: "
-                f"{get_status_icon(user.wake_notify)}",
-                callback_data="toggle_wake_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"🍛 Food: "
-                f"{get_status_icon(user.food_notify)}",
-                callback_data="toggle_food_notify"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                f"⚙️ Custom: "
-                f"{get_status_icon(user.custom_notify)}",
-                callback_data="toggle_custom_notify"
-            )
-        ]
+        [InlineKeyboardButton(f"🕌 Prayer: {get_status_icon(user.prayer_notify)}", callback_data="toggle_prayer_notify")],
+        [InlineKeyboardButton(f"🕐 Hourly: {get_status_icon(user.hourly_notify)}", callback_data="toggle_hourly_notify")],
+        [InlineKeyboardButton(f"📚 Study: {get_status_icon(user.study_notify)}", callback_data="toggle_study_notify")],
+        [InlineKeyboardButton(f"💼 Work: {get_status_icon(user.work_notify)}", callback_data="toggle_work_notify")],
+        [InlineKeyboardButton(f"🎮 Play: {get_status_icon(user.play_notify)}", callback_data="toggle_play_notify")],
+        [InlineKeyboardButton(f"😴 Sleep: {get_status_icon(user.sleep_notify)}", callback_data="toggle_sleep_notify")],
+        [InlineKeyboardButton(f"🌅 Wake-up: {get_status_icon(user.wake_notify)}", callback_data="toggle_wake_notify")],
+        [InlineKeyboardButton(f"🍛 Food: {get_status_icon(user.food_notify)}", callback_data="toggle_food_notify")],
+        [InlineKeyboardButton(f"⚙️ Custom: {get_status_icon(user.custom_notify)}", callback_data="toggle_custom_notify")]
     ]
 
-    markup = InlineKeyboardMarkup(
-        keyboard
-    )
-
+    markup = InlineKeyboardMarkup(keyboard)
     if update.callback_query:
-
-        await update.callback_query.message.reply_text(
-            "⚙️ *আপনার নোটিফিকেশন সেটিংস:*",
-            reply_markup=markup,
-            parse_mode="Markdown"
-        )
-
+        await update.callback_query.message.reply_text("⚙️ *আপনার নোটিফিকেশন সেটিংস:*", reply_markup=markup, parse_mode="Markdown")
     else:
-
-        await update.message.reply_text(
-            "⚙️ *আপনার নোটিফিকেশন সেটিংস:*",
-            reply_markup=markup,
-            parse_mode="Markdown"
-        )
+        await update.message.reply_text("⚙️ *আপনার নোটিফিকেশন সেটিংস:*", reply_markup=markup, parse_mode="Markdown")
 
 
 # ============================================================
 # TOGGLE NOTIFICATION
 # ============================================================
 
-async def toggle_notification_callback(
-    update,
-    context
-):
-
+async def toggle_notification_callback(update, context):
     query = update.callback_query
-
     await query.answer()
 
     field_map = {
-        "toggle_prayer_notify":
-            "prayer_notify",
-
-        "toggle_hourly_notify":
-            "hourly_notify",
-
-        "toggle_study_notify":
-            "study_notify",
-
-        "toggle_work_notify":
-            "work_notify",
-
-        "toggle_play_notify":
-            "play_notify",
-
-        "toggle_sleep_notify":
-            "sleep_notify",
-
-        "toggle_wake_notify":
-            "wake_notify",
-
-        "toggle_food_notify":
-            "food_notify",
-
-        "toggle_custom_notify":
-            "custom_notify"
+        "toggle_prayer_notify": "prayer_notify",
+        "toggle_hourly_notify": "hourly_notify",
+        "toggle_study_notify": "study_notify",
+        "toggle_work_notify": "work_notify",
+        "toggle_play_notify": "play_notify",
+        "toggle_sleep_notify": "sleep_notify",
+        "toggle_wake_notify": "wake_notify",
+        "toggle_food_notify": "food_notify",
+        "toggle_custom_notify": "custom_notify"
     }
 
-    field = field_map.get(
-        query.data
-    )
-
+    field = field_map.get(query.data)
     if field:
-
-        await toggle_user_setting(
-            query.from_user.id,
-            field
-        )
-
-        await notifications_menu(
-            update,
-            context
-)
+        await toggle_user_setting(query.from_user.id, field)
+        await notifications_menu(update, context)
